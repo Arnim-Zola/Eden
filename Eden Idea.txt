@@ -1,0 +1,1187 @@
+EDEN — AI-Powered Misinformation & Contextual Analysis Platform 
+Complete Technical Architecture, Product Specification & Engineering Design Document 
+PART ONE: PRODUCT VISION & STRATEGIC FOUNDATION 
+
+1. Product Vision 
+Eden is an AI-assisted contextual verification and misinformation probability analysis platform 
+designed specifically for Instagram content — reels, posts, carousels, and image-based media. The 
+platform does not position itself as a truth arbitration engine or a binary fact-checking oracle. 
+Instead, it operates as an intelligent contextual reasoning system that analyzes media content, 
+extracts claims, evaluates those claims against known contextual knowledge, and produces 
+structured probability-based analysis reports that inform users rather than dictate conclusions. 
+The philosophical foundation of Eden is epistemic humility combined with analytical rigor. The 
+system will never output "THIS IS FALSE." It will instead output contextual signals, confidence
+weighted reasoning, claim classification, source pattern analysis, and probability indicators that 
+together form a nuanced picture of the credibility and reliability of the content being analyzed. 
+This distinction is not merely semantic — it is fundamental to the product's integrity. Misinformation 
+detection at machine scale is an extraordinarily difficult problem. Models hallucinate. OCR misreads. 
+Audio transcription introduces artifacts. Contextual knowledge has a cutoff. By designing Eden as a 
+contextual reasoning assistant rather than a verdict machine, the product remains intellectually 
+honest, ethically defensible, and far more useful to a thinking user. 
+Eden targets a generation of social media users who are increasingly aware that viral content is 
+unreliable, but lack the tools or time to verify it themselves. The platform meets them at the point of 
+consumption — they paste a URL, select an analysis type, and receive a professional AI-powered 
+report within seconds that helps them think more critically about what they just watched or read. 
+For a college-level demo, Eden needs to demonstrate three things convincingly: media ingestion 
+works, AI analysis is intelligent and non-trivial, and the output report feels professional and genuinely 
+useful. Every architectural decision made in this document is evaluated against these three criteria. 
+
+2. Core Product Positioning 
+Eden is best understood as sitting at the intersection of three existing categories without fully 
+belonging to any of them. 
+It is not a traditional fact-checking website like Snopes or PolitiFact, which rely on human editorial 
+teams manually reviewing claims. Eden automates the claim extraction and contextual reasoning 
+steps entirely through AI pipelines, which means it can analyze content in near real-time rather than 
+days later. 
+It is not a media literacy browser extension like NewsGuard, which evaluates source-level credibility 
+based on publication history. Eden operates on individual pieces of content rather than on the 
+publisher identity, which means it can catch misleading content even from historically credible 
+accounts. 
+It is not a social media moderation system like Meta's own content review infrastructure, which 
+operates at platform scale with access to internal signals, engagement patterns, and account history. 
+Eden works entirely from publicly accessible content and is designed for individual user 
+empowerment rather than platform governance. 
+What Eden is: a personal AI-powered contextual analysis assistant that takes a specific piece of 
+Instagram content, processes it through a multi-modal AI pipeline, and returns a structured 
+reasoning report that helps the user evaluate the content themselves. 
+
+PART TWO: FULL SYSTEM ARCHITECTURE 
+
+3. High-Level System Architecture Overview 
+Eden's system architecture follows a layered, modular pipeline design organized around four major 
+zones: the Presentation Layer, the Orchestration Layer, the Processing Layer, and the Intelligence 
+Layer. 
+The Presentation Layer is the React frontend that the user interacts with directly. It handles URL 
+input, analysis type selection, real-time job status feedback, and the final report display. This layer 
+communicates exclusively with the Django backend through a REST API and never interacts with AI 
+models, media processing tools, or external services directly. 
+The Orchestration Layer is the Django backend, built with Django REST Framework. It is responsible 
+for receiving analysis requests, validating inputs, spawning and managing asynchronous processing 
+tasks, tracking job state, and assembling final reports from pipeline outputs. The Django backend is 
+the system's central nervous system — it owns the job lifecycle from submission to completion. 
+The Processing Layer handles the computational heavy lifting: downloading Instagram media using 
+browser automation, extracting audio using FFmpeg, extracting video frames using OpenCV, running 
+OCR on images using EasyOCR, and transcribing audio using Whisper. This layer produces structured 
+raw artifacts — text, transcripts, frame images, and metadata — that are then passed to the 
+Intelligence Layer. 
+The Intelligence Layer is where AI reasoning happens. This layer receives the structured artifacts from 
+the Processing Layer and applies claim detection, claim classification, misinformation probability 
+analysis, contextual reasoning, and report synthesis. The primary intelligence engine is the Gemini 
+API, which provides the large language model reasoning capabilities. HuggingFace-hosted models 
+provide supporting classification, sentiment analysis, and propaganda detection capabilities. 
+These four layers communicate in a unidirectional pipeline: the Presentation Layer makes requests to 
+the Orchestration Layer, which triggers the Processing Layer, which feeds the Intelligence Layer, 
+which returns structured results back to the Orchestration Layer, which assembles and returns the 
+final report to the Presentation Layer. 
+
+4. Architectural Principles 
+Several architectural principles guide every design decision in Eden. 
+Modularity is the first principle. Every analysis type — text, audio, frame — is implemented as an 
+independent processing module with a standardized input/output interface. This means any module 
+can be upgraded, replaced, or disabled without affecting the others. If EasyOCR is replaced by a more 
+accurate OCR engine in the future, only the OCR module changes. The rest of the pipeline remains 
+untouched. 
+Asynchronous processing is the second principle. Media downloading, audio extraction, frame 
+extraction, OCR processing, and AI inference are all computationally expensive and time-variable 
+operations. None of these should block the web server process. All analysis jobs are immediately 
+dispatched to a background task queue upon submission, and the frontend polls for job status 
+asynchronously. This keeps the Django web server responsive and makes the system feel fast even 
+when individual analysis jobs take thirty to sixty seconds to complete. 
+Fail-graceful degradation is the third principle. If audio extraction fails because a reel has no audio, 
+the system should not crash — it should detect this, log it, and return a partial report explaining that 
+audio analysis was unavailable. If OCR returns no detectable text, the system should note this in the 
+report rather than returning an error. Every pipeline step has explicit success/failure state tracking, 
+and the report generation system is designed to work with partial data. 
+Separation of AI reasoning from data processing is the fourth principle. The Processing Layer should 
+never make AI calls. The Intelligence Layer should never do FFmpeg calls. This clean separation 
+makes the system easier to test, easier to debug, and easier to scale independently. AI inference 
+costs money and time — by isolating it in its own layer, the system can apply rate limiting, caching, 
+and cost controls specifically to AI calls without interfering with media processing. 
+Demo-first pragmatism is the fifth principle. Because this is a college project, every technical decision 
+must balance impressiveness with feasibility. The architecture is designed to be impressive in scope 
+and intelligent in output while remaining buildable by a small team in a realistic timeframe. Where 
+production-grade solutions would require infrastructure that is impractical for a college project, this 
+document recommends practical alternatives that deliver equivalent value for demo purposes.
+
+PART THREE: FRONTEND ARCHITECTURE 
+5. React Frontend Architecture 
+The frontend is a single-page application built with React and styled with TailwindCSS. It 
+communicates with the Django backend exclusively through the REST API layer and has no direct 
+knowledge of any AI model, processing library, or media handling logic. 
+The frontend is organized around three primary views: the Input View, the Processing View, and the 
+Report View. 
+The Input View is the landing experience. It presents a clean, minimal interface where the user 
+pastes an Instagram URL and selects the desired analysis type from clearly labeled options. The 
+design philosophy here is confidence and simplicity — the user should feel they are using a serious, 
+professional tool, not a student project. The URL input field should have validation feedback that 
+visually confirms whether the pasted URL appears to be a valid Instagram URL before submission. 
+The analysis type selector should use descriptive card-style components that explain what each 
+analysis type does in one sentence, so users who are unfamiliar with the differences can make an 
+informed choice. There should be a clear indicator that Frame Analysis is a Pro Feature, with a short 
+explanation of what makes it different. 
+The Processing View is displayed immediately after the user submits an analysis request. The 
+backend returns a job ID synchronously upon request submission, and the frontend enters a polling 
+loop — hitting the job status endpoint every two to three seconds to check whether the job is 
+complete, still running, or has failed. The Processing View should show a multi-stage progress 
+indicator that communicates to the user which phase of the pipeline is currently active: downloading 
+media, extracting content, running AI analysis, generating report. These stages should animate 
+sequentially as the backend updates the job status with phase metadata. This creates a perception of 
+transparency and intelligence that makes the waiting experience engaging rather than anxiety
+inducing. 
+The Report View is where the system's value is demonstrated. It receives the structured report JSON 
+from the backend and renders it as a professional, readable analysis document. The report layout 
+should present the most important findings — the overall risk classification and the primary claims 
+detected — at the top, with detailed reasoning sections expanding below. Each detected claim 
+should be presented as its own card with its classification label, a confidence indicator, and the 
+contextual reasoning that led to that classification. Visual risk indicators — such as color-coded 
+badges or probability bars — should communicate the overall assessment at a glance while the 
+detailed text sections provide the depth. 
+The state management architecture should use React's built-in Context API for global job state, with 
+local component state for UI-specific behavior like expanded/collapsed sections. There is no need for 
+Redux or any heavy state management library at the MVP stage. The polling logic should be 
+implemented as a custom React hook that encapsulates the interval management, cleanup behavior, 
+and error handling for the job status checking loop. 
+
+6. Frontend Component Architecture Reasoning 
+The frontend component hierarchy should follow a feature-based organization rather than a type
+based organization. Grouping components by feature — such as all analysis-submission-related 
+components in one directory and all report-display-related components in another — makes the 
+codebase navigable for a small team and aligns the code structure with user-visible features. 
+Routing should be minimal at the MVP stage. Three routes are sufficient: the home/input route, a job 
+status route parameterized by job ID, and a report route also parameterized by job ID. The job status 
+route and report route may ultimately be the same route, transitioning from processing state to 
+report state when the job completes. 
+The report display system deserves particular attention in the component design because it is the 
+most complex and most important part of the frontend. Each section of the report — header 
+summary, claim cards, transcript display, frame viewer, confidence visualization — should be an 
+independent component that receives its data as props from a parent report container component. 
+This makes it straightforward to add new report sections as new analysis capabilities are added 
+without restructuring the entire report view. 
+
+PART FOUR: DJANGO BACKEND ARCHITECTURE 
+
+7. Django Backend Architecture Overview 
+The Django backend is the authoritative orchestration engine of the entire Eden system. It is not 
+merely a pass-through API layer — it owns the entire job lifecycle, coordinates all processing 
+modules, manages data persistence, and serves as the sole interface between the user-facing 
+frontend and all backend intelligence systems. 
+The backend is built with Django 4.x and Django REST Framework. The use of Django is a hard 
+requirement from the college curriculum, but it is also a genuinely sound choice for this use case. 
+Django's ORM provides clean database abstraction, DRF provides a structured API layer, and Django's 
+mature ecosystem provides solutions for async task queuing, background processing, and 
+administrative management. 
+The backend is organized into several Django applications, each responsible for a clearly bounded 
+domain of functionality. 
+
+8. Django Application Structure 
+The Eden Django project should be organized into the following Django apps: 
+The core app handles the fundamental data models shared across the system — the AnalysisJob 
+model, the MediaAsset model, and the AnalysisReport model. It owns the lifecycle state machine for 
+analysis jobs and provides the base classes and utilities that other apps depend on. This app contains 
+no API endpoints and no business logic beyond data modeling and state management. 
+The ingestion app is responsible for everything related to acquiring and preparing media from 
+Instagram. It owns the browser automation workflow for downloading reels and posts, the media 
+storage logic for saving downloaded content to the local filesystem or a storage backend, and the 
+metadata extraction logic for pulling basic information about the post such as caption text and post 
+type. The ingestion app exposes an internal Python API — not a REST endpoint — that the 
+orchestration layer calls when a new analysis job starts. 
+The processing app contains the individual processing modules: the OCR processing module, the 
+audio extraction and transcription module, and the frame extraction module. Each of these is 
+implemented as a separate Python module within the processing app with a standardized interface 
+that accepts a MediaAsset object and returns a structured ProcessingResult object. This 
+standardization is what enables the modular upgrade principle described earlier. 
+The analysis app is the intelligence layer's interface within Django. It receives structured 
+ProcessingResult objects from the processing app, constructs the appropriate prompts and inputs for 
+the AI models, calls the Gemini API and any HuggingFace models, and returns structured 
+AnalysisResult objects. The analysis app is designed to be completely independent of the media 
+processing concerns — it works entirely with text, transcripts, and image data, not with FFmpeg 
+processes or browser automation. 
+The reports app is responsible for assembling the final user-facing report from the outputs of the 
+analysis app. It takes the collection of AnalysisResult objects produced by the intelligence layer and 
+synthesizes them into a coherent AnalysisReport object that can be serialized and returned to the 
+frontend. The reports app also handles report formatting decisions — how confidence scores are 
+presented, how claim classifications are labeled, and how the overall risk assessment is computed 
+from the individual claim-level assessments. 
+The api app contains all the DRF ViewSets, Serializers, and URL configurations that expose the 
+system's functionality to the frontend. It is deliberately thin — it handles request validation, 
+authentication (minimal at MVP), rate limiting, and response formatting, but it delegates all business 
+logic to the appropriate app. The api app is the only app that is directly aware of the HTTP 
+request/response cycle. 
+
+9. Django App Internal Structure Reasoning 
+Within each Django app, the following internal structure should be maintained consistently. Models 
+are defined in models.py. Business logic is kept in services.py, not in models or views. ViewSets and 
+Serializers are in views.py and serializers.py respectively within the api app. Background task 
+definitions live in tasks.py within each relevant app. Constants, enumerations, and configuration 
+values live in constants.py. Utility functions that do not belong to any specific business concern live in 
+utils.py. 
+This structure deliberately follows the Fat Service, Thin View pattern. Django views and DRF ViewSets 
+should contain almost no business logic. They receive a request, call the appropriate service function, 
+and return the result. All decision-making, data manipulation, and processing coordination happens 
+in service layers. This makes the business logic independently testable without involving the HTTP 
+layer. 
+
+10. Project-Level Folder Structure 
+At the top level, the Eden project directory should be organized into a clearly separated frontend and 
+backend structure. The backend directory contains the Django project root with manage.py and the 
+project settings module, alongside each individual Django app in its own subdirectory. A separate 
+media directory, which is gitignored, stores downloaded Instagram content and extracted frames and 
+audio files. A separate storage directory manages any persistent artifacts. A requirements.txt or 
+pyproject.toml file at the backend root specifies all Python dependencies. 
+The frontend directory contains the React application with the standard structure generated by Vite 
+or Create React App, with a src directory containing the feature-organized component directories. 
+Environment variables are managed through a .env file at the project root that is gitignored, with a 
+.env.example file committed to the repository showing all required configuration keys without their 
+values. This is a professional practice that makes the project immediately usable by anyone who 
+clones the repository. 
+A docker-compose.yml file at the project root, even if not required for the MVP demo, signals 
+architectural maturity and makes the system reproducible on any machine. For the demo, running 
+Django's development server and a local Celery worker is entirely sufficient. 
+PART FIVE: API DESIGN STRATEGY 
+
+11. REST API Architecture 
+The Eden API follows RESTful conventions with a resource-oriented URL design. All API endpoints are 
+versioned under a /api/v1/ prefix to allow future breaking changes without disrupting existing 
+clients. 
+The primary resource is the AnalysisJob. A user creates an AnalysisJob by posting to /api/v1/jobs/ 
+with the Instagram URL and selected analysis type. The backend validates the input, creates a 
+database record for the job with an initial status of PENDING, enqueues the analysis task in the 
+background task queue, and immediately returns a 201 response containing the job ID and initial 
+status. The client never waits for the analysis to complete during the submission request — this 
+asynchronous pattern is fundamental to the system's responsiveness. 
+The client then polls /api/v1/jobs/{job_id}/ to check the current job status. This endpoint returns the 
+job's current phase, overall status, and any available partial results. The status field cycles through 
+the values PENDING, DOWNLOADING, PROCESSING, ANALYZING, GENERATING_REPORT, 
+COMPLETED, and FAILED. The phase field within the response provides human-readable descriptions 
+of what is currently happening, which the frontend uses to update its progress indicators. This design 
+means the frontend always knows exactly where in the pipeline the job currently sits. 
+When the job status is COMPLETED, the same /api/v1/jobs/{job_id}/ endpoint returns the full report 
+as a nested object within the response. There is no separate report endpoint at the MVP stage — the 
+full report is embedded in the job resource. This simplicity is intentional and appropriate for the 
+demo scope. 
+A separate /api/v1/jobs/{job_id}/frames/ endpoint returns the list of extracted frames for a given 
+job, used exclusively by the Frame Analysis flow to present the frame selection interface to the user. 
+Each frame is represented by its index, a thumbnail URL, and a timestamp indicating its position in 
+the video. 
+The /api/v1/jobs/{job_id}/analyze-frame/ endpoint accepts a POST request with a frame index and 
+triggers frame-specific AI analysis. This is the interaction point for the Pro Feature frame selection 
+f
+low. 
+All API responses follow a consistent envelope format with a data field containing the primary 
+response payload, a meta field containing pagination or additional context where relevant, and an 
+errors field containing any validation or processing errors. Consistent response enveloping makes the 
+frontend API consumption code simpler and more predictable. 
+
+12. API Authentication Strategy 
+At the MVP demo stage, authentication should be minimal but present. A simple token-based 
+authentication using DRF's built-in token authentication is sufficient. For the demo, generating a 
+single API token per demo session and hardcoding it in the frontend environment configuration is 
+entirely adequate. 
+The important architectural point is that the authentication hook points should exist in the API layer 
+from the beginning, even if they are minimally enforced at the MVP stage. Adding proper 
+authentication later should not require restructuring the API — it should only require changing the 
+authentication backend and adding user association to the AnalysisJob model. 
+Rate limiting should be applied at the API layer using DRF's throttling classes. A demo-appropriate 
+rate limit of ten requests per hour per IP address prevents accidental or intentional API abuse during 
+demos while not interfering with normal evaluation of the system. 
+
+PART SIX: DATABASE DESIGN 
+
+13. Database Architecture 
+SQLite is the correct choice for the MVP demo stage. It requires zero infrastructure setup, is file
+based, ships with Python, and handles the extremely low concurrent load of a college demo with no 
+performance concerns. The PostgreSQL migration path is straightforward because Django's ORM 
+abstracts the database entirely — migrating later requires only changing the DATABASE configuration 
+in settings.py and running migrations against the new database. 
+The database schema centers on three primary models. 
+The AnalysisJob model is the root entity. It stores the submitted Instagram URL, the selected analysis 
+type as an enumerated field, the current job status as an enumerated field, the current processing 
+phase as a text field for human-readable status updates, timestamps for creation and last update, 
+and a foreign key to the associated AnalysisReport once one exists. It also stores error messages if 
+the job fails, which are valuable for debugging and for returning meaningful error information to the 
+frontend. 
+The MediaAsset model stores metadata about the media artifacts produced during the ingestion and 
+processing phases. Each AnalysisJob may have multiple associated MediaAssets — for example, the 
+original downloaded video, the extracted audio file, and a directory of extracted frames. The 
+MediaAsset model stores the asset type as an enumerated value, the file path on the local 
+f
+ilesystem, the file size, a processing status indicating whether the asset has been processed yet, and 
+any relevant metadata extracted during processing such as video duration, audio sample rate, or 
+frame count. 
+The AnalysisReport model stores the complete structured analysis output. Rather than normalizing 
+every claim and every reasoning step into separate database tables — which would be architecturally 
+complex and unnecessary at the MVP stage — the report is stored as a structured JSON field. 
+Django's JSONField, available natively in SQLite and PostgreSQL, stores the complete report structure 
+as a single field. This allows the report structure to evolve without requiring database migrations for 
+every structural change, which is particularly valuable during rapid development. 
+The ClaimRecord model is worth including as a simple supporting model even at the MVP stage. Each 
+claim detected in the content is stored as its own record associated with the AnalysisJob, with fields 
+for the claim text, the detection source (OCR, transcript, or visual), the classification label, the 
+confidence score, and a summary of the contextual reasoning. Storing claims as individual records 
+rather than embedding them in the JSON report enables interesting queries — finding all jobs that 
+detected a particular claim type, tracking which types of claims appear most frequently in analyzed 
+content — that could become valuable for a demo, for research, and for future features. 
+
+14. Database Relationship Design Reasoning 
+The relationship between AnalysisJob and MediaAsset is one-to-many. A single analysis job produces 
+multiple media assets. MediaAssets are created and updated throughout the processing pipeline as 
+different processing steps complete. This relationship is the primary mechanism by which the 
+Orchestration Layer tracks what has been produced and what remains to be done. 
+The relationship between AnalysisJob and AnalysisReport is one-to-one. A job produces exactly one 
+f
+inal report. The report is only created when the job reaches the GENERATING_REPORT phase, so 
+before that point the foreign key is null. 
+The relationship between AnalysisJob and ClaimRecord is one-to-many. A single analysis job may 
+detect zero, one, or many distinct claims. Claims are created by the Intelligence Layer as part of the 
+analysis process and are associated with the job directly. 
+PART SEVEN: AI PIPELINE ARCHITECTURE 
+
+15. AI Pipeline Overview 
+The AI pipeline is the intellectual heart of Eden and the component that most directly determines 
+the system's analytical quality. The pipeline is designed around three principles: modularity of 
+analysis types, composability of model outputs, and transparency of reasoning. 
+Modularity means that the text analysis pipeline, audio analysis pipeline, and frame analysis pipeline 
+are independent workflows that share infrastructure — the Gemini API connection, the HuggingFace 
+model loader, the report assembler — but do not depend on each other. A job requesting only audio 
+analysis never touches the OCR module. 
+Composability means that when multiple analysis types are requested for a single piece of content, 
+their outputs are assembled into a unified report rather than presented as separate disconnected 
+analyses. The report generation system is designed to synthesize findings across analysis types into 
+coherent overall conclusions. 
+Transparency of reasoning means that every AI-generated conclusion in the report is accompanied by 
+the specific evidence and contextual reasoning that produced it. The system is explicitly designed to 
+show its work, not just produce verdicts. This is both an ethical design principle and a practical demo 
+advantage — showing a detailed chain of contextual reasoning is far more impressive than showing a 
+single classification label.
+
+16. Gemini API Integration Strategy 
+Gemini is the primary large language model powering Eden's reasoning capabilities. The integration 
+strategy for Gemini is built around a prompt engineering architecture that structures every analysis 
+request as a carefully formatted system prompt plus user prompt combination. 
+The system prompt establishes Gemini's role as a contextual analysis assistant, defines the output 
+format expected, specifies the classification taxonomy the model should use, and includes explicit 
+instructions about epistemic humility — the model should never assert absolute certainty, should 
+always explain its reasoning, and should explicitly note when it lacks sufficient context to make a 
+confident assessment. 
+The user prompt for each analysis type is constructed programmatically by the analysis app based on 
+the specific content being analyzed. For text analysis, the user prompt contains the extracted text or 
+transcript, a structured list of detected claims, and a request for claim-by-claim contextual analysis. 
+For audio analysis, the user prompt contains the full transcript along with any available metadata 
+about the reel's source, topic, and context. For frame analysis, the user prompt includes the image 
+data of the selected frame along with any associated text from the post caption. 
+The response from Gemini is requested in a structured JSON format that maps to the report 
+structure. The system prompt specifies the exact JSON schema expected in the response, which 
+makes parsing reliable and reduces the need for complex post-processing of the model output. 
+Gemini's instruction-following capability for structured output is strong enough to make this 
+approach reliable for demo purposes. 
+Each Gemini API call is wrapped in a retry mechanism with exponential backoff to handle transient 
+API failures gracefully. The analysis app maintains a configurable timeout for Gemini calls, and if a call 
+exceeds this timeout, the job transitions to a FAILED state with an appropriate error message rather 
+than hanging indefinitely. 
+
+17. HuggingFace Model Integration Strategy 
+HuggingFace provides supporting classification capabilities that complement Gemini's generative 
+reasoning. Rather than relying on the Inference API for all HuggingFace models — which has rate 
+limits and latency considerations — the architecture distinguishes between models that are small 
+enough to run locally and models where the Inference API is more practical. 
+For propaganda and bias detection, a fine-tuned text classification model from HuggingFace is used. 
+Models such as those fine-tuned on the PROPAGANDA-DETECTION or MEDIA-BIAS datasets can be 
+downloaded once and run locally using the transformers library. These models are typically small 
+enough — under five hundred megabytes — that local inference is entirely practical even on a 
+college laptop. The classification output from these models serves as a signal layer that informs the 
+Gemini reasoning prompt, providing structured classification labels that give the generative model a 
+starting point for its contextual reasoning. 
+For medical claim detection and scientific claim classification, pre-trained NLI (natural language 
+inference) models work well. A model fine-tuned on health or scientific claim classification can 
+determine whether a given piece of text makes a medical claim, a dietary claim, a scientific claim, or 
+a health recommendation, which feeds directly into the claim risk analysis system. 
+Whisper, OpenAI's speech-to-text model, is the audio transcription engine. The medium model of 
+Whisper provides excellent transcription accuracy across multiple languages and accents while being 
+fast enough for demo purposes. Running Whisper locally eliminates any dependency on external 
+transcription APIs and ensures that audio processing works offline. The whisper Python library 
+installs the model locally and provides a simple Python API for transcription. Given that Instagram 
+reels are typically short — under sixty seconds — Whisper transcription completes in a few seconds 
+on modern hardware. 
+
+18. Claim Detection Architecture 
+Claim detection is the process of identifying specific factual assertions, medical claims, causal claims, 
+or verifiable statements within the extracted content. This is a non-trivial natural language 
+processing problem that the architecture approaches through a two-phase process. 
+In the first phase, a pre-processing step applies rule-based and pattern-based detection to identify 
+candidate claim sentences from the extracted text. This phase uses a combination of sentence 
+segmentation, linguistic pattern matching — looking for assertion structures such as subject-verb
+object patterns with factual predicates — and keyword detection for domain-specific claim types 
+such as medical claims, which often contain marker phrases like "cures," "proven to," "doctors say," 
+or "studies show." 
+In the second phase, the candidate claims identified in the first phase are passed to the Gemini 
+model for contextual claim analysis. Gemini is given the full content context alongside the candidate 
+claims and asked to confirm which are genuine verifiable claims versus opinions, entertainment, 
+satire, or rhetorical questions, and to perform contextual reasoning on each confirmed claim. 
+This two-phase approach is more robust than asking Gemini to identify claims from scratch because 
+the rule-based first phase ensures that the LLM's attention is focused on the most claim-like content 
+rather than having to process everything equally. It also makes the pipeline more debuggable — if 
+claim detection is failing, it is easy to inspect the rule-based candidates and determine whether the 
+problem is in the first phase or the second. 
+
+PART EIGHT: OCR PROCESSING PIPELINE 
+
+19. OCR Architecture 
+The OCR pipeline is responsible for extracting machine-readable text from visual content in 
+Instagram posts and reels. This includes overlay text in videos, caption graphics, screenshots of text 
+messages, infographic text, headline text, and any other text that appears visually within the media 
+rather than in the caption. 
+EasyOCR is the recommended OCR engine for Eden. It outperforms Tesseract on real-world social 
+media content because it was designed for natural scene text recognition rather than clean 
+document text recognition. Social media text overlays are often styled, rotated, placed over colorful 
+backgrounds, or presented in non-standard fonts — all conditions where EasyOCR's deep learning
+based approach significantly outperforms Tesseract's traditional page segmentation approach. 
+EasyOCR also provides built-in multi-language support, which is relevant for Instagram content that 
+may appear in multiple languages. 
+The OCR pipeline receives either a single image (in the case of an Instagram photo post or a manually 
+selected frame) or a directory of extracted frames (in the case of a reel where automatic frame 
+extraction has been performed). For the automatic frame extraction case at the MVP stage, a 
+sampling strategy is applied rather than processing every frame — processing every frame of a thirty
+second reel would be slow and redundant since most consecutive frames have nearly identical text 
+content. A sampling rate of one frame per two seconds provides comprehensive coverage of text 
+overlays with manageable computational cost. 
+EasyOCR returns bounding box coordinates and confidence scores for each detected text region, 
+along with the recognized text itself. The OCR module retains the confidence scores and filters out 
+detections below a configurable threshold — typically 0.3 — to avoid feeding low-confidence noise 
+text to the analysis layer. The surviving detections are deduplicated using simple string similarity 
+comparison to avoid sending the same text phrase multiple times if it appears across multiple 
+sampled frames. 
+The final OCR output is a structured object containing the extracted text strings, their associated 
+confidence scores, and their approximate positions in the frame. This structured output is what gets 
+passed to the analysis layer for claim detection and contextual reasoning. 
+
+20. Image Preprocessing for OCR 
+Raw video frames and social media images often contain conditions that degrade OCR accuracy — 
+motion blur, low contrast between text and background, compression artifacts, and complex 
+background imagery. A lightweight preprocessing step before OCR can significantly improve 
+detection quality. 
+The preprocessing pipeline uses OpenCV to apply a sequence of image enhancement operations. 
+First, the frame is resized to a standard resolution if it is significantly larger or smaller than EasyOCR's 
+optimal input size. Second, a contrast enhancement operation is applied to improve text legibility 
+against complex backgrounds. Third, for frames that appear to contain white text on dark 
+backgrounds or dark text on light backgrounds, the preprocessing can apply adaptive thresholding to 
+isolate text regions. 
+These preprocessing steps are intentionally lightweight and fast. The goal is not to perfectly segment 
+every possible text configuration — that would require a complex and expensive document analysis 
+pipeline — but to apply simple enhancement operations that improve the common-case accuracy 
+enough to meaningfully improve downstream claim detection quality. 
+
+PART NINE: AUDIO ANALYSIS PIPELINE 
+
+21. Audio Extraction Architecture 
+Audio extraction is the first step of the audio analysis pipeline. FFmpeg is the correct and only serious 
+tool for this step. It is universally available, extraordinarily reliable, handles every audio and video 
+format encountered on Instagram, and supports the full range of output format options needed. 
+The audio extraction step uses FFmpeg to extract the audio track from the downloaded video file and 
+save it as a WAV file at a sample rate of 16,000 Hz, which is the sample rate that Whisper is trained 
+on. Converting to WAV rather than using the original audio encoding eliminates any codec 
+compatibility concerns in the downstream transcription step. The extraction is wrapped in a 
+subprocess call from the Django processing module, with stdout and stderr captured for logging. 
+Before audio extraction, the processing module checks whether the downloaded media is a video file 
+or a static image. Static image posts have no audio to extract. The module also checks the video file's 
+audio stream metadata — if no audio stream is present, the module records this as a MediaAsset of 
+type AUDIO with a processing status of NO_AUDIO_FOUND and skips the transcription step 
+gracefully. 
+
+22. Speech Transcription Architecture 
+Whisper transcription is performed locally using the whisper Python library. The medium model 
+variant is the recommended choice for Eden. It provides substantially better accuracy than the base 
+or small models for accented speech, non-English content, and technical vocabulary — all of which 
+appear regularly in Instagram content — while remaining fast enough to complete transcription of a 
+sixty-second clip in under ten seconds on standard modern hardware. 
+The transcription call returns a result object containing the full transcript text, word-level 
+t
+imestamps, and language detection metadata. The language detection information is valuable for 
+the analysis layer — content originally in a language other than English may require different 
+reasoning approaches or may benefit from translation before claim analysis. 
+The transcript is post-processed before being passed to the analysis layer. Post-processing involves 
+removing filler word artifacts that Whisper occasionally introduces, collapsing repeated words that 
+sometimes appear due to audio artifacts, and applying sentence boundary detection to split the 
+transcript into analyzable sentences. The NLTK sentence tokenizer works well for this step. 
+For reels where the audio contains music without speech, Whisper will typically produce either no 
+transcript or a short transcript consisting of non-linguistic sounds. The post-processing step detects 
+this case by checking whether the transcript meets a minimum word count threshold and whether 
+the detected language confidence score is above a minimum threshold. If the content appears to be 
+music rather than speech, the processing module records this in the MediaAsset metadata and the 
+analysis layer responds accordingly — treating music content as entertainment rather than applying 
+claim analysis. 
+
+23. Spoken Claim Analysis 
+Once a clean transcript is available, the audio analysis pipeline passes it to the claim detection 
+architecture described in section 18. The specific claim types that the audio analysis module is tuned 
+to detect include medical claims and health advice, which are extremely common in viral Instagram 
+content and often the most harmful category of misinformation. The system specifically watches for 
+linguistic patterns associated with dangerous medical advice: guaranteed cure language, timeframe 
+promises, anti-medicine narratives, and reference to unverified scientific authority. 
+The analysis also classifies the overall content type of the audio. A reel discussing personal opinions 
+is treated differently from a reel presenting factual claims. The system classifies audio content into 
+the following broad categories: factual claim content, opinion/commentary content, 
+entertainment/satire content, music/performance content, instructional content, and 
+promotional/advertising content. This classification informs how aggressively the claim analysis is 
+applied — instructional content about a recipe does not warrant the same level of claim scrutiny as 
+content making health-related assertions. 
+
+PART TEN: FRAME ANALYSIS PIPELINE 
+
+24. Frame Extraction Architecture 
+Frame extraction is performed using OpenCV's video capture functionality. The extraction module 
+opens the downloaded video file, reads the total frame count and video duration from the file 
+metadata, and extracts one frame per second of video duration. For a thirty-second reel, this 
+produces thirty frames. For a forty-second reel, forty frames. 
+Each extracted frame is saved as a JPEG file in a dedicated directory associated with the AnalysisJob, 
+named with a zero-padded index and timestamp for easy sorting. A thumbnail version of each frame, 
+scaled to a width of 320 pixels, is also generated for use in the frontend frame selection interface. 
+The thumbnail generation step uses OpenCV's resize function with area interpolation, which 
+produces good quality downsampled images. 
+The frame extraction module creates a FrameManifest object — stored as a JSON file in the job 
+directory and also recorded in the database — that maps each frame index to its file path, thumbnail 
+path, timestamp in the video, and a brief metadata description. This manifest is what the 
+/api/v1/jobs/{job_id}/frames/ endpoint reads and returns to the frontend. 
+25. Frame Selection and Analysis Flow 
+The Frame Analysis Pro Feature introduces a user-interactive step into what is otherwise a fully 
+automated pipeline. After frame extraction completes, the system enters a 
+WAITING_FOR_FRAME_SELECTION state, and the frontend presents the frame selection interface — 
+a scrollable horizontal strip of thumbnail images with timestamps — for the user to browse and 
+select the specific frame they want analyzed. 
+This design choice reflects a considered tradeoff. Automatically analyzing all thirty or forty frames 
+would be slow, expensive in terms of AI API calls, and would produce a report full of redundant 
+f
+indings since many frames in a reel contain similar content. By letting the user select the specific 
+frame they are interested in, the system provides targeted precision at dramatically lower cost and 
+latency. 
+Once the user selects a frame, the frontend posts the frame index to the analyze-frame endpoint. 
+The backend retrieves the full-resolution frame from the MediaAsset directory, passes it to the frame 
+analysis module, and initiates a Gemini vision analysis request. 
+The frame analysis module sends the selected frame as a base64-encoded image to the Gemini API 
+with a carefully structured prompt requesting scene description, text extraction (as a backup to or 
+complement of the OCR pipeline), visual claim identification, propaganda element detection, and 
+contextual assessment. Gemini's multi-modal vision capability is well-suited for this task — it can 
+interpret the visual context of the frame holistically, understanding the relationship between visual 
+elements and overlaid text in a way that OCR alone cannot. 
+The frame analysis prompt explicitly asks Gemini to describe what it sees before making any 
+assessments, ensuring that the reasoning chain in the report is grounded in observable visual facts 
+rather than floating judgments. 
+
+PART ELEVEN: MISINFORMATION DETECTION STRATEGY 
+
+26. Misinformation Detection Philosophy 
+The misinformation detection architecture of Eden is built on a clear-eyed understanding of both 
+what AI can do and what it cannot do in this domain. 
+What AI can reliably do: extract text from media, transcribe speech to text, identify linguistic patterns 
+associated with known misinformation types, classify content by domain, apply contextual 
+knowledge to assess the plausibility of specific claims against general world knowledge, detect 
+propaganda rhetorical techniques, identify emotional manipulation language, recognize the markers 
+of satire and opinion, and generate structured reasoning explanations for its assessments. 
+What AI cannot reliably do: verify breaking news events in real time, access claims against live fact
+checking databases, determine the ground truth of events that occurred after its training cutoff, 
+definitively determine whether a specific claim made in a specific video is true or false, or reason 
+about highly specialized technical domains with expert-level accuracy. 
+The Eden system is explicitly designed to operate within the first category and to acknowledge the 
+second category transparently in its reports. Every report generated by Eden includes an explicit 
+disclaimer in a dedicated section explaining these limitations. This is not defensive — it is part of 
+Eden's value proposition. A system that acknowledges what it does not know is more trustworthy 
+than one that never admits uncertainty. 
+
+27. Claim Classification Taxonomy 
+Eden uses a seven-level classification taxonomy for individual claims detected in content. 
+The VERIFIED_LIKELY_TRUE classification is applied to claims that match well-established, widely 
+documented facts available in the model's knowledge base, where no significant contradicting 
+evidence is present in the contextual reasoning. 
+The PLAUSIBLE classification is applied to claims that are consistent with known facts but where the 
+specific assertion has not been definitively confirmed in available context. Many claims about 
+ongoing events or developing situations fall into this category. 
+The UNVERIFIED classification is applied to claims that cannot be assessed because they concern 
+events, statistics, or facts that fall outside the model's knowledge or that require real-time data to 
+evaluate. This is not a negative classification — it simply means the system cannot make a 
+meaningful assessment. 
+The OPINION_OR_SATIRE classification is applied to content that presents personal views, 
+commentary, or satirical framing as its primary mode. Opinion content is not misinformation by 
+definition, and the system is designed not to treat opinions as factual claims. 
+The MISLEADING_CONTEXT classification is applied to claims that may be factually accurate in 
+isolation but are presented in a way that creates a false impression — selective statistics, out-of
+context quotes, or factually correct statements that imply false conclusions. 
+The LIKELY_FALSE classification is applied to claims that directly contradict well-established facts, 
+scientific consensus, or documented events as understood from the model's training knowledge. This 
+is a high-confidence classification that the system applies conservatively. 
+The HIGH_RISK classification is specifically designed for medical and health claims that could pose 
+direct harm if followed. This classification does not require the claim to be definitively false — a claim 
+can be unverified and still receive HIGH_RISK classification if it pertains to medical treatment, 
+medication, or health interventions. 
+
+28. Propaganda and Bias Detection 
+Propaganda detection operates as a parallel signal layer alongside the claim-level analysis. While 
+claim analysis focuses on individual factual assertions, propaganda detection looks at the rhetorical 
+and structural techniques used in the content as a whole. 
+The propaganda technique classification is based on the SEMEVAL 2020 propaganda detection 
+framework, which identified fourteen propaganda techniques used in news content. The techniques 
+most relevant to Instagram content include: loaded language (using emotionally charged words to 
+influence rather than inform), name-calling and labeling (attaching negative labels to people or 
+groups without argument), appeal to fear or prejudice (exploiting emotional responses), bandwagon 
+(claiming something is true because many people believe it), repetition (asserting the same point 
+multiple times without new evidence), and cherry-picking (presenting only evidence that supports 
+one conclusion while omitting contrary evidence). 
+The HuggingFace propaganda detection model provides a probability score for several of these 
+techniques at the sentence level. The analysis app aggregates these sentence-level scores into an 
+overall propaganda intensity indicator for the content. High propaganda intensity does not 
+automatically mean the content is false — legitimate advocacy and persuasion use many of the same 
+rhetorical techniques — but it is a meaningful signal that the content is designed to persuade rather 
+than inform. 
+Political bias detection uses a separate pre-trained classifier that categorizes political content on a 
+left-center-right spectrum. Again, political bias is not misinformation — it is a transparency signal. 
+The report presents political bias indicators as contextual information rather than as a negative 
+f
+inding. 
+
+PART TWELVE: CLAIM VERIFICATION STRATEGY 
+
+29. Contextual Verification Architecture 
+Because Eden operates without real-time access to fact-checking databases or live web search, its 
+verification strategy is entirely contextual rather than direct. The distinction is important to 
+understand. 
+Direct verification would mean: claim detected → query Snopes/FactCheck.org/Wikipedia → return 
+the authoritative answer. This approach requires real-time API access to fact-checking databases, 
+which are either paywalled, rate-limited, or simply do not have entries for the vast majority of 
+specific claims that appear in Instagram content. 
+Contextual verification means: claim detected → apply contextual knowledge from the model's 
+training data → reason about the claim's plausibility, domain, source patterns, and linguistic 
+characteristics → produce a probability-weighted assessment with explicit reasoning. This is what 
+Eden does. 
+The Gemini model has been trained on an enormous corpus of text that includes scientific literature, 
+news reporting, encyclopedia content, and general world knowledge. For the majority of claims that 
+appear in Instagram content — particularly health claims, scientific claims, and current events claims 
+— Gemini's contextual knowledge base is sufficient to provide genuinely meaningful assessment. A 
+claim that "drinking bleach cures COVID" can be assessed with very high confidence because it 
+contradicts basic, well-established medical facts. A claim that "Rockstar confirmed Red Dead 
+Redemption 3" can be assessed by examining what is known about Rockstar's announcements, the 
+credibility of the attributed source, and the patterns of how game announcements are typically 
+made. 
+For claims that fall outside Gemini's confident knowledge domain, the system is explicitly designed to 
+return an UNVERIFIED classification with an explanation of why verification is not possible in this 
+context, rather than fabricating a confident-sounding assessment. 
+30. Source and Account Context Signals 
+During the ingestion phase, the system captures available metadata about the Instagram post 
+beyond the media content itself. This metadata includes the account handle or username visible in 
+the post, the post caption text, the post's visible engagement indicators if accessible, and the content 
+type. 
+While Eden does not perform account-level reputation analysis at the MVP stage, the account name 
+and caption text are passed to the Gemini analysis prompt as context signals. An account handle that 
+contains terms like "news," "health," or "official" combined with content that makes factual claims 
+warrants different scrutiny than an account that is clearly a personal humor account making the 
+same claims satirically. The Gemini model is asked to incorporate this contextual metadata into its 
+assessment, which provides a primitive but meaningful source credibility signal without requiring a 
+full account reputation database. 
+
+PART THIRTEEN: MEDIA PROCESSING WORKFLOW 
+
+31. End-to-End Media Processing Workflow 
+The complete media processing workflow begins the moment a user submits an Instagram URL and 
+an analysis type selection. The following describes the complete sequence of operations. 
+Step one is URL validation. The Django API layer applies a regex validation to the submitted URL to 
+confirm it matches Instagram URL patterns before accepting the request. Invalid URLs are rejected 
+immediately with a 400 error. Valid URLs proceed to job creation. 
+Step two is job creation. The API creates an AnalysisJob record in the database with status PENDING 
+and enqueues a Celery task for the ingestion phase. The API returns the job ID to the frontend 
+immediately. 
+Step three is media ingestion. The Celery worker picks up the ingestion task and updates the job 
+status to DOWNLOADING. The browser automation module opens a headless Chromium browser 
+using Playwright, navigates to the Instagram URL, waits for the media to load, and downloads the 
+video file or image using a combination of network request interception and direct media URL 
+access. The downloaded file is saved to the media directory and a MediaAsset record is created. 
+Step four is media type detection. The processing module inspects the downloaded file to determine 
+whether it is a video or a static image. The analysis type selected by the user also informs which 
+processing steps are required. Based on this combination, the processing pipeline determines which 
+extraction steps to run. 
+Step five is parallel extraction. If the selected analysis type is text analysis, the OCR pipeline begins. If 
+the selected analysis type is audio analysis, the audio extraction and transcription pipeline begins. If 
+the selected analysis type is frame analysis, the frame extraction pipeline begins. For video content, 
+audio extraction and frame extraction can proceed in parallel as separate Celery tasks since they 
+operate on the same source file independently and do not depend on each other's outputs. 
+Step six is analysis. Once the required extraction steps complete, the analysis app receives the 
+structured outputs and begins the AI analysis phase. The job status transitions to ANALYZING. 
+Step seven is report generation. The reports app receives the analysis outputs, assembles the final 
+AnalysisReport, and saves it to the database. The job status transitions to COMPLETED. 
+Step eight is result delivery. The next polling request from the frontend receives the completed 
+report and the frontend transitions to the Report View. 
+
+PART FOURTEEN: BROWSER AUTOMATION WORKFLOW 
+
+32. Instagram Media Ingestion Architecture 
+Browser automation is a pragmatic solution to the fundamental challenge of accessing Instagram 
+media without an official API. Instagram's official API has extremely restrictive access policies that 
+make it unsuitable for a college project. Playwright is the recommended browser automation library 
+for this purpose — it is more modern than Selenium, supports Chromium natively, provides excellent 
+network request interception capabilities, and has a clean Python API. 
+The ingestion workflow using Playwright involves launching a headless Chromium browser instance, 
+navigating to the Instagram URL, and using Playwright's network interception capabilities to capture 
+the actual media URLs that the browser fetches as it loads the Instagram page. Instagram serves 
+video content through CDN URLs with temporary authentication tokens embedded in the URL 
+parameters. By intercepting these network requests, the automation layer can capture the direct 
+media URL and download the file using a standard HTTP request without requiring Instagram 
+authentication in most cases. 
+For public Instagram content — which is the target scope for the MVP — this approach is reliable. 
+Private content or content from private accounts is outside the system's scope and should be 
+handled gracefully with an appropriate error message. 
+The browser automation module is wrapped in timeout management and retry logic. Instagram 
+pages can take variable amounts of time to load media, and the automation needs to wait for the 
+media to actually appear in the page's network traffic before trying to capture its URL. A configurable 
+maximum wait time of fifteen seconds is appropriate, after which the ingestion step fails gracefully 
+with a clear error message. 
+The Playwright browser instance should be managed as a persistent process rather than being 
+spawned and destroyed for each request. Starting a Chromium browser has significant overhead — 
+several seconds on typical hardware. By maintaining a pool of browser contexts that can be reused 
+across multiple requests, the ingestion latency is dramatically reduced. For the MVP demo, a single 
+persistent browser instance with request-level context isolation is sufficient. 
+33. Browser Automation Error Handling 
+The browser automation layer must handle several failure modes gracefully. 
+URL not found or content deleted means the Instagram URL points to content that no longer exists. 
+The automation layer should detect the 404 or content-unavailable response and return a clear error 
+to the orchestration layer. 
+Private account means the content is accessible to the browser but behind a follow gate. The 
+automation layer should detect the privacy-restricted view and return an appropriate error. 
+Rate limiting by Instagram means the browser automation is being throttled by Instagram's bot 
+detection. Implementing a minimum delay between ingestion requests reduces the likelihood of 
+triggering rate limits. For a college demo with low request volume, this is rarely a concern. 
+Unsupported content type means the URL points to a story, a live video, or another Instagram 
+content type that Eden does not currently support. The ingestion layer should detect this and return 
+an informative error rather than attempting to process an incompatible content format.
+
+PART FIFTEEN: ASYNC TASK HANDLING 
+
+34. Celery Task Queue Architecture 
+All computationally expensive and time-variable operations in Eden are executed as Celery 
+asynchronous tasks rather than synchronously within Django request handlers. This architectural 
+decision is fundamental to the system's responsiveness and reliability. 
+Celery is the industry-standard Python task queue library and integrates natively with Django. For the 
+MVP demo, Redis is the recommended message broker for Celery. Redis is fast, simple to install, and 
+widely supported. A single Redis instance running locally is entirely sufficient for the demo's task 
+volume. 
+The Celery worker configuration for Eden defines several task queues with different priority levels. 
+The ingestion queue handles media download tasks. The processing queue handles OCR, audio 
+extraction, and frame extraction tasks. The analysis queue handles AI inference tasks. The report 
+queue handles report generation tasks. 
+This queue separation serves two purposes. First, it ensures that expensive AI inference tasks do not 
+block faster media processing tasks if the worker pool is saturated. Second, it makes it possible to 
+scale different parts of the pipeline independently in production — adding more analysis workers 
+without changing the ingestion worker count, for example. 
+Each Celery task in Eden follows a strict pattern: it accepts the job ID as its primary argument rather 
+than complex data objects, loads the required state from the database at task start, performs its 
+work, updates the job status in the database throughout execution, and returns the result. Passing 
+the job ID rather than data objects avoids Celery's message size limitations and ensures that task 
+state is always synchronized with the database. 
+35. Task Chain Design 
+For a single analysis job, the processing steps are organized as a Celery chain — a sequence of tasks 
+that execute in order, with each task's output triggering the next. The chain begins with the ingestion 
+task. Upon successful completion, the ingestion task triggers the appropriate extraction tasks for the 
+selected analysis type. Upon completion of the extraction tasks, the analysis task is triggered. Upon 
+completion of analysis, the report generation task is triggered. 
+Task chain design in Celery uses the chain and group primitives. When multiple extraction steps can 
+run in parallel — for example, audio extraction and frame extraction for a frame analysis request — 
+these steps are organized as a Celery group that runs in parallel and then joins into the next task in 
+the chain. 
+Error handling in the task chain is managed through Celery's error callback mechanism. Each task in 
+the chain registers an error callback that updates the AnalysisJob status to FAILED with appropriate 
+error information if the task raises an unhandled exception. The frontend polling loop checks for 
+FAILED status and displays appropriate error information to the user. 
+
+PART SIXTEEN: REPORT GENERATION SYSTEM 
+
+36. Report Architecture 
+The report generation system is responsible for synthesizing all outputs from the analysis layer into a 
+coherent, readable, professional report structure. It is deliberately separated from the analysis layer 
+— the analysis layer produces raw intelligence outputs (claim records, classification scores, reasoning 
+texts, visual descriptions), and the report layer transforms those outputs into a user-facing narrative. 
+The AnalysisReport has a defined JSON structure that serves as the canonical format for all Eden 
+reports. The top-level fields are: report metadata (job ID, timestamp, analysis type, content type 
+detected, content URL), overall assessment (overall risk level, confidence in assessment, primary 
+f
+inding summary), content summary (brief description of what the content is about), claims array 
+(each claim with its full analysis), technical details (OCR confidence, transcript quality, frame data), 
+limitations and caveats, and methodology explanation. 
+The overall risk level is a computed field derived from the individual claim classifications. If any claim 
+is classified as HIGH_RISK, the overall risk level is HIGH regardless of other findings. If any claim is 
+classified as LIKELY_FALSE, the overall risk level is at minimum MEDIUM. If no claims are detected, 
+the overall risk level is LOW. This computation is deterministic and transparent, which means users 
+can understand how the overall assessment was derived from the individual findings. 
+The report generation module constructs a final synthesis prompt that is sent to Gemini to produce 
+the natural language summary sections of the report — the primary finding summary and the 
+content summary. Rather than having Gemini generate the entire report, this synthesis step uses 
+Gemini specifically for its natural language generation capability to produce clear, professional prose 
+summaries from the structured data that has already been computed. This hybrid approach — 
+structured data computed deterministically, prose generated by LLM — is more reliable than asking 
+the LLM to produce both structured and unstructured output simultaneously. 
+37. Report Quality Signals 
+The report includes explicit quality signals that communicate to the user how much confidence to 
+place in the analysis. These signals are presented transparently in a dedicated section of the report. 
+The OCR confidence signal indicates the average confidence of text detected by EasyOCR. Low OCR 
+confidence suggests that the visible text in the content was difficult to read and that text-based 
+f
+indings may be incomplete. 
+The transcription quality signal indicates Whisper's confidence in the audio transcription. Very short 
+transcripts, very low confidence scores, or detection of a non-English language that may have been 
+processed less accurately are all noted. 
+The analysis coverage signal indicates what percentage of the content the analysis system was able 
+to process. If frame extraction was requested but the content is a static image, this signal notes the 
+mismatch. If audio analysis was requested but the content had no speech track, this is reflected. 
+The knowledge freshness signal explicitly notes that the AI's contextual knowledge has a training 
+cutoff and that events or claims from after that cutoff cannot be reliably assessed. 
+These quality signals are not presented as caveats buried in fine print — they are presented as a first
+class component of the report that directly informs how the user should interpret the findings. 
+PART SEVENTEEN: SCALABILITY AND PERFORMANCE 
+38. Scalability Planning 
+At the MVP demo stage, the system is explicitly designed for low-scale operation — a single 
+developer machine running Django's development server, a local Celery worker process, a local Redis 
+instance, and SQLite. This is entirely appropriate for a college demo. 
+The architectural decisions made throughout this document, however, are designed to scale linearly 
+when the time comes. The separation of the web server from the Celery workers means that adding 
+more processing capacity requires only adding more worker instances — no changes to the Django 
+application code. The SQLite-to-PostgreSQL migration is a configuration change. The local filesystem 
+media storage can be replaced with an object storage service like AWS S3 by implementing a storage 
+backend abstraction layer, which should be introduced early as an abstraction even when pointing at 
+local storage. 
+The modular Django app structure means that high-load components — specifically, the AI analysis 
+tasks — can be extracted into a separate microservice in the future without requiring a full system 
+rewrite. The current architecture communicates between apps through Python function calls; 
+converting this to HTTP calls between separate services is a well-understood migration pattern. 
+39. Performance Optimization Strategy 
+For the demo, the most important performance consideration is end-to-end job latency — the time 
+from URL submission to report availability. The critical path for this latency is: browser automation 
+download time, plus audio/OCR/frame extraction time, plus Gemini API response time. Typical values 
+are approximately five to fifteen seconds for download, two to ten seconds for extraction, and two to 
+f
+ive seconds for Gemini response. Total end-to-end time of fifteen to thirty seconds is realistic and 
+acceptable for a demo, provided the frontend's polling and progress indicator design makes the wait 
+feel purposeful rather than broken. 
+Caching is a meaningful optimization for the demo scenario. If the same Instagram URL is submitted 
+multiple times, the system should detect this during job creation and return the cached result rather 
+than re-running the entire pipeline. A simple URL-to-job-result cache stored in the AnalysisJob 
+database itself — checking for a COMPLETED job with the same URL and analysis type before 
+creating a new job — eliminates redundant processing for URLs that are demo'd multiple times. 
+Gemini API response time is the component most difficult to control. Structuring Gemini prompts to 
+request concise structured output rather than verbose narrative output reduces token generation 
+t
+ime. Using the Flash variant of Gemini rather than the Pro variant for preliminary analysis steps 
+provides faster responses at acceptable quality, reserving the Pro variant for the final report 
+synthesis step. 
+
+PART EIGHTEEN: SECURITY AND ETHICAL CONSIDERATIONS 
+
+40. Security Architecture 
+Input validation is the first security concern. All submitted URLs are validated against strict Instagram 
+URL patterns before any processing begins. The validation should use a whitelist approach — 
+confirming that the URL matches an expected Instagram URL structure — rather than a blacklist 
+approach. This prevents URL injection attacks that might attempt to direct the browser automation 
+system toward non-Instagram URLs. 
+File handling security is critical in the media processing pipeline. Downloaded files must be stored in 
+an isolated directory with a controlled naming convention. The file path passed to FFmpeg, OpenCV, 
+and EasyOCR should always be constructed by the Django application from a trusted job ID and file 
+type combination, never from any user-supplied string. Path traversal attacks through malicious URL 
+submissions should be explicitly prevented by sanitizing all constructed file paths. 
+API rate limiting is the primary defense against abuse of the analysis pipeline. The Gemini API has 
+usage costs associated with it, and unconstrained access to the analysis endpoint could result in 
+significant unexpected costs. DRF's throttling should be configured conservatively for the demo. 
+The Playwright browser automation process runs with system-level permissions and should be 
+carefully sandboxed. The automation should only ever navigate to Instagram URLs — any attempt to 
+programmatically instruct it to navigate elsewhere should be rejected at the automation layer
+ 
+41. Ethical Framework 
+Eden operates in ethically sensitive territory. Building a system that labels content as potentially 
+misinformative or propagandistic has real-world implications for the humans who create that 
+content. The ethical framework for Eden is built around three principles. 
+The first principle is transparency of mechanism. The system always explains how it reached its 
+conclusions. Users should never see a classification label without seeing the reasoning behind it. This 
+prevents Eden from functioning as an opaque black box that arbitrarily condemns content. 
+The second principle is epistemic humility at every output. Every report generated by Eden 
+prominently communicates that the analysis is AI-assisted and probabilistic, not human-reviewed 
+and authoritative. The system actively discourages users from treating its outputs as final verdicts. 
+The third principle is scope limitation. Eden is explicitly scoped to contextual analysis of content, not 
+to analysis of people, accounts, or communities. The system analyzes a specific piece of content and 
+makes no claims about the person who created it, their character, their intentions, or their overall 
+reliability as an information source. This scope limitation is enforced in the report generation 
+prompts and in the frontend display design. 
+
+42. Bias and Hallucination Risks 
+The AI systems used in Eden introduce several categories of risk that must be acknowledged in the 
+product design. 
+Hallucination risk is the risk that Gemini generates confident-sounding contextual reasoning that is 
+factually incorrect. The system mitigates this risk by structuring prompts to ask for reasoning that is 
+grounded in observable content features and explicit contextual knowledge rather than asking the 
+model to generate claims from internal knowledge. The system also explicitly asks Gemini to express 
+uncertainty rather than confabulate confidence. 
+Demographic bias risk is the risk that classification models trained on historical data reflect the biases 
+present in that historical data. A propaganda detection model trained primarily on English-language 
+Western media may systematically classify culturally unfamiliar rhetorical styles as propaganda. The 
+system mitigates this by using multiple signal sources and by flagging classifications based on 
+culturally specific patterns as lower-confidence findings. 
+Language bias risk is the risk that the system performs significantly worse on non-English content. 
+Whisper handles multilingual audio reasonably well, but Gemini's contextual reasoning quality varies 
+across languages. The system should explicitly note language detection in the quality signals section 
+of the report and apply appropriate confidence reductions for non-English content. 
+Recency bias risk is the risk that the AI's training data cutoff means it cannot assess claims about 
+recent events. This is not a bias in the statistical sense but a fundamental limitation that must be 
+communicated clearly. The knowledge freshness signal in the report is the primary mitigation for this 
+risk. 
+
+PART NINETEEN: UI/UX DESIGN STRATEGY 
+
+43. Visual Design Philosophy 
+Eden's visual identity should communicate two qualities simultaneously: technical intelligence and 
+trustworthiness. These are somewhat unusual qualities to combine in a consumer interface, and the 
+design must navigate this carefully. 
+Technical intelligence is communicated through clean, information-dense layouts that display 
+structured analysis data clearly. The report view should look more like a professional intelligence 
+briefing than a social media app. Typography choices — clear hierarchical heading sizes, readable 
+body text, code-style monospace for extracted quotes and transcripts — reinforce the analytical 
+character of the interface. 
+Trustworthiness is communicated through visual restraint and honest uncertainty display. The system 
+should never use alarming red colors or dramatic warning icons for claims that are merely 
+UNVERIFIED — visual drama should be reserved for HIGH_RISK and LIKELY_FALSE classifications 
+where it is warranted. Confidence scores should be displayed as ranges or probability bars rather 
+than precise decimal values, which would imply false precision in the underlying analysis. 
+The color system should be purposefully designed around the classification taxonomy. GREEN tones 
+for VERIFIED_LIKELY_TRUE and PLAUSIBLE. GRAY for UNVERIFIED and OPINION_OR_SATIRE. AMBER 
+for MISLEADING_CONTEXT. ORANGE for LIKELY_FALSE. RED for HIGH_RISK. This color coding allows 
+users to scan the report and immediately understand the overall picture before reading the detailed 
+reasoning. 
+
+44. Report Display Design 
+The report display is the most consequential UX decision in the entire product. The challenge is 
+presenting complex multi-layered analysis in a way that is immediately comprehensible to a non
+technical user while preserving the depth that a technically sophisticated user wants. 
+The recommended approach is a progressive disclosure design. The report opens with a concise 
+header section: the overall risk level displayed prominently with its color coding, a one-paragraph 
+primary finding summary, and a row of metadata cards showing the content type, analysis type, 
+number of claims detected, and timestamp. This header section communicates the essential finding 
+in under ten seconds. 
+Below the header is the Claims section, which displays each detected claim as an expandable card. 
+The collapsed state of each card shows the claim text, its classification badge, and a confidence 
+indicator. The expanded state reveals the full contextual reasoning, the specific evidence cited, and 
+any relevant source pattern observations. This design lets users quickly scan all claims and then drill 
+into the ones they find most interesting or concerning. 
+Below the Claims section is the Technical Details section, which shows the raw transcript (if audio 
+analysis was performed), the OCR-extracted text (if text analysis was performed), and the frame 
+viewer (if frame analysis was performed). This section satisfies the technically curious user who 
+wants to see exactly what the AI was working from. 
+The final section is the Limitations and Methodology section, which presents the quality signals 
+described in section 37 and a brief explanation of how Eden works. This section reinforces the 
+epistemic humility principle by ensuring that every user who reads the full report understands what 
+kind of analysis they are looking at. 
+
+PART TWENTY: DEPLOYMENT AND DEMO STRATEGY 
+
+45. Deployment Strategy 
+For the college demo, the recommended deployment configuration is a local development 
+deployment running on a laptop or desktop machine. Django's development server, a single Celery 
+worker process, and a locally running Redis instance are entirely sufficient for a demo with a small 
+audience. 
+The setup should be documented thoroughly in a README that allows any team member to spin up 
+the full stack in under five minutes. This documentation should include environment setup, 
+dependency installation, environment variable configuration, and the commands to start each 
+component. 
+For a more polished demo that runs in a browser accessible to judges or evaluators over a network, 
+deploying to a simple cloud VM — a DigitalOcean Droplet or AWS EC2 t3.micro instance — using a 
+simple Gunicorn + Nginx configuration for the Django API and a systemd service for the Celery 
+worker is a significant step up in professionalism without being overly complex. A domain name 
+registered for the demo adds considerably to the perceived seriousness of the project. 
+PostgreSQL should replace SQLite for any cloud deployment to avoid filesystem-level database 
+corruption from concurrent writes, which can occur even at low traffic volumes on SQLite.
+
+46. Demo Strategy 
+The demo should be structured to tell a clear story that builds understanding and generates 
+excitement for a non-technical audience. 
+The demo begins with a problem statement: Instagram is full of viral content that spreads 
+misinformation. People share it without checking because checking takes too long. Eden changes 
+that. 
+The first demo shows text analysis on a clearly misleading Instagram post with a provocative factual 
+claim. The audience watches the progress indicator cycle through phases, then sees the professional 
+report emerge. The claim classification and contextual reasoning is read aloud. The point is 
+demonstrated: Eden identified this as MISLEADING_CONTEXT and explained exactly why, in thirty 
+seconds. 
+The second demo shows audio analysis on a reel making health claims — ideally a recognizable genre 
+like a viral natural remedy recommendation. The transcript is highlighted in the report, the 
+HIGH_RISK medical claim classification is pointed to, and the contextual reasoning explaining why the 
+claim is scientifically unsupported is read aloud. 
+The third demo, if time permits, shows frame analysis on a reel where a specific frame contains a 
+screenshot of false statistics or a misleading graphic. The frame selection interface is demonstrated, 
+and the visual claim analysis in the resulting report is highlighted. 
+The demo should be rehearsed with pre-selected URLs that are known to produce impressive results. 
+Having a set of five or six URLs that demonstrate different analysis types and different classification 
+outcomes ensures that the demo can proceed even if a specific URL becomes unavailable or 
+produces an unexpected result. 
+
+PART TWENTY-ONE: MVP ROADMAP AND TIMELINE 
+
+47. MVP Development Roadmap 
+The MVP development can be organized into four development phases spanning approximately eight 
+to twelve weeks for a team of three to four people. 
+Phase one, spanning weeks one and two, focuses on foundation: setting up the Django project 
+structure with all apps, configuring Celery and Redis, implementing the database models, and setting 
+up the React frontend with routing and basic UI components. The goal of phase one is a system 
+where a user can submit a URL and see a job ID returned. No AI processing yet — just the job 
+creation and tracking infrastructure. 
+Phase two, spanning weeks three and four, focuses on media ingestion: implementing the Playwright 
+browser automation for Instagram URL downloading, implementing the FFmpeg audio extraction and 
+Whisper transcription pipeline, implementing the OpenCV frame extraction pipeline, and 
+implementing the EasyOCR processing pipeline. The goal of phase two is a system where a submitted 
+URL results in extracted text, transcript, and frames being stored in the database. Still no AI analysis. 
+Phase three, spanning weeks five through eight, focuses on AI integration: implementing the Gemini 
+API integration, building the claim detection and classification prompt architecture, integrating the 
+HuggingFace classification models, implementing the report generation system, and wiring the 
+analysis outputs to the report display in the frontend. The goal of phase three is a system that 
+produces meaningful analysis reports. 
+Phase four, spanning weeks nine through twelve, focuses on polish: improving report display quality, 
+handling error cases gracefully, adding the quality signals to reports, implementing the frame 
+selection interface for the Pro Feature, improving the progress indicator UX, and rehearsing and 
+refining the demo. The goal of phase four is a demo-ready product. 
+
+48. Team Division Suggestions 
+For a four-person team, the following division of responsibility is recommended. 
+One person owns the media ingestion and processing pipeline — Playwright automation, FFmpeg, 
+OpenCV, Whisper, and EasyOCR. This is primarily a backend Python role requiring comfort with 
+subprocess management and media file handling. 
+One person owns the Django backend architecture — models, services, API endpoints, Celery task 
+design, and database management. This is a pure backend role requiring Django and DRF comfort. 
+One person owns the AI pipeline — Gemini integration, HuggingFace model integration, prompt 
+engineering, claim detection logic, and report generation. This is primarily an AI/ML role requiring 
+Python comfort and prompt engineering skills. 
+One person owns the React frontend — all UI components, the report display design, the polling 
+logic, and the overall visual design. This is a pure frontend role requiring React and TailwindCSS skills. 
+For a three-person team, the media processing role and the Django backend role can be combined 
+into a single broader backend role, which is a reasonable combination since both are Python-based. 
+
+PART TWENTY-TWO: FUTURE SCOPE AND RESEARCH POTENTIAL 
+
+49. Future Feature Roadmap 
+The Pro Feature tier introduces several capabilities that would distinguish a commercial version of 
+Eden from the free tier. 
+Full multi-type analysis runs all three analysis types simultaneously on a single piece of content and 
+produces a unified cross-modal report that correlates findings across text, audio, and visual channels. 
+This is a significant capability enhancement because misinformation often exploits inconsistencies 
+between spoken claims and visual claims — a reel might make a claim verbally that is contradicted by 
+text shown on screen, or vice versa. 
+Historical claim tracking would allow the system to recognize when the same claim appears across 
+multiple pieces of content analyzed by the platform. Building a claim database allows Eden to 
+provide not just individual content analysis but trend analysis — "this claim has appeared in 47 
+analyzed reels in the past month" — which is a qualitatively different and more powerful form of 
+insight. 
+Multi-platform support extending beyond Instagram to TikTok, YouTube Shorts, and Twitter/X video 
+content would dramatically expand the addressable use case. The core AI pipeline is platform
+agnostic — only the media ingestion layer would need to be extended with platform-specific 
+automation modules. 
+Real-time web search integration, connecting Gemini to a web search tool during analysis, would 
+allow the system to assess claims against current web content rather than relying solely on training 
+data. This would dramatically improve the accuracy and timeliness of the VERIFIED and LIKELY_FALSE 
+classifications. 
+
+50. Research Paper Potential 
+Eden has substantial potential as a computer science or information science research contribution. 
+Several research directions emerge from the architecture. 
+The first research direction is multi-modal misinformation detection performance comparison — 
+systematically comparing the accuracy of text-only, audio-only, visual-only, and combined multi
+modal analysis for classifying misinformation in social media video content. Eden provides a concrete 
+implementation that could be evaluated against a labeled ground-truth dataset. 
+The second research direction is the effectiveness of LLM-based contextual reasoning for claim 
+classification compared to traditional supervised classification approaches. The architecture of Eden 
+explicitly contrasts the Gemini-based contextual reasoning approach with the HuggingFace 
+classification model approach, making comparative evaluation natural. 
+The third research direction is user trust calibration in AI-assisted misinformation detection — 
+investigating whether transparent uncertainty communication in AI reports leads to better-calibrated 
+user trust in those reports compared to systems that present confident verdicts without uncertainty 
+disclosure. 
+
+PART TWENTY-THREE: RECOMMENDED LIBRARIES AND SERVICES 
+
+51. Recommended Open Source Libraries 
+For the Django backend: Django 4.x, Django REST Framework 3.x, Celery 5.x, django-celery-results for 
+storing task results in the database, django-cors-headers for frontend-backend communication 
+during development, python-decouple for environment variable management, and Pillow for image 
+manipulation. 
+For media processing: FFmpeg-python as the Python wrapper for FFmpeg, OpenCV-Python for frame 
+extraction and image preprocessing, Whisper from openai-whisper for audio transcription, and 
+EasyOCR for text detection. 
+For AI and NLP: the google-generativeai Python SDK for Gemini integration, the transformers library 
+from HuggingFace for running classification models, and NLTK for sentence tokenization and basic 
+NLP preprocessing. 
+For browser automation: Playwright for Python, with its built-in Chromium management eliminating 
+the need for separate WebDriver setup. 
+For the React frontend: React 18, TailwindCSS 3, Axios for API communication, React Query for server 
+state management and the polling loop, and Lucide React for iconography. 
+
+52. Recommended APIs and Services 
+Gemini 1.5 Flash is recommended as the primary AI reasoning engine for all non-final-synthesis 
+analysis steps. Gemini 1.5 Pro is recommended for the final report synthesis step where maximum 
+reasoning quality justifies the higher cost. 
+For development deployment, Render or Railway provide free-tier cloud hosting that handles Django 
+application deployment with minimal configuration and supports Redis as a managed service. These 
+platforms are significantly easier than AWS or GCP for a college project deployment. 
+For the demo domain name, Namecheap offers affordable domain registration and straightforward 
+DNS configuration that can point to any cloud hosting provider. 
+
+PART TWENTY-FOUR: LIMITATIONS AND CHALLENGES 
+
+53. System Limitations 
+The most fundamental limitation of Eden is its dependence on Instagram's UI remaining unchanged. 
+Browser automation-based media ingestion is inherently brittle — Instagram can and does change its 
+page structure, and when it does, the automation code breaks until it is updated. This is an 
+acceptable limitation for a college demo but is a significant ongoing maintenance burden for any 
+production deployment. 
+The second limitation is the training data cutoff of the Gemini model. Claims about events that 
+occurred after the model's knowledge cutoff cannot be assessed contextually. This limitation is 
+architectural and cannot be mitigated without real-time web search integration. 
+The third limitation is language coverage. While EasyOCR and Whisper both support multiple 
+languages, the Gemini contextual reasoning quality varies significantly across languages. Content in 
+low-resource languages will receive lower-quality analysis. 
+The fourth limitation is claim specificity. Generic contextual reasoning from a large language model is 
+less accurate than domain-specific fact-checking by subject matter experts. For highly technical 
+scientific claims or claims in specialized domains, Eden's analysis may miss nuances that would be 
+caught by a domain expert. 
+
+54. Realistic Implementation Challenges 
+The browser automation for Instagram ingestion will require ongoing maintenance and debugging. 
+Instagram actively attempts to detect and block automated access, and the automation code will 
+need to be adjusted as Instagram updates its anti-automation measures. 
+Gemini prompt engineering is an iterative process. The first version of the analysis prompts will not 
+produce ideal output. Several cycles of testing with real Instagram content, evaluating the quality of 
+the resulting reports, and refining the prompts based on observed failures are necessary before the 
+analysis quality reaches a demo-appropriate level. This iteration time should be budgeted explicitly in 
+the development timeline. 
+Running Whisper locally requires meaningful computational resources. On machines without a GPU, 
+Whisper medium transcription can take longer than the video itself for content over thirty seconds. 
+Testing the transcription performance on the specific hardware available for the demo is important, 
+and falling back to the Whisper small model or the Whisper base model may be necessary for 
+acceptable latency on CPU-only machines. 
+EasyOCR also requires GPU resources for optimal performance. On CPU, EasyOCR processes each 
+frame in two to five seconds, which means processing multiple frames from a reel can take thirty 
+seconds or more. The sampling strategy described in the OCR architecture section — one frame per 
+two seconds rather than every frame — is essential for keeping OCR processing time within 
+acceptable bounds on CPU hardware. 
+
+55. Making the Project Feel Modern and Impressive 
+Several design and presentation choices will elevate Eden from a functional prototype to an 
+impressive college project. 
+A professional landing page with a clear value proposition and visually appealing design 
+communicates immediate credibility. Using a domain name rather than an IP address or localhost 
+URL for the demo creates a product-grade first impression. 
+The report design should use carefully chosen typography, spacing, and color coding to create a 
+document that looks like something from a professional intelligence or journalism tool. The visual 
+design quality of the report is as important as the analytical quality — judges evaluate what they see. 
+Demonstrating real-time progress with animated, accurate phase indicators creates a sense of 
+watching a genuinely sophisticated system at work. The difference between a static loading spinner 
+and an animated multi-phase progress indicator that updates accurately throughout a thirty-second 
+processing job is enormous from a demo presentation perspective. 
+Including a confidence visualization — a simple probability bar or gauge chart that shows the overall 
+misinformation risk score alongside the color-coded classification — adds a data visualization 
+element that signals quantitative rigor. 
+Presenting the system's limitations honestly and proactively in the demo actually increases credibility 
+rather than diminishing it. Judges and evaluators are sophisticated enough to distrust systems that 
+claim to solve unsolvable problems perfectly. A system that says "here is what we can do, here is 
+what we cannot do, and here is why the distinction matters" demonstrates genuine understanding of 
+the problem domain. 
+This document represents a complete technical architecture and product specification for Eden at its 
+f
+irst version. Every architectural decision documented here is designed to balance college-project 
+feasibility with startup-grade product thinking. The system as described is buildable, demonstrable, 
+genuinely intelligent, and architecturally honest about both its capabilities and its limitations. 
