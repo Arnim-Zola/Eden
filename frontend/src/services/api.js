@@ -1,12 +1,15 @@
 const API_BASE = 'http://localhost:8000/api';
 
-export const createJob = async (instagramUrl) => {
+export const createJob = async (instagramUrl, analysisMode = 'text') => {
   const response = await fetch(`${API_BASE}/jobs/`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ instagram_url: instagramUrl }),
+    body: JSON.stringify({ 
+      instagram_url: instagramUrl,
+      analysis_mode: analysisMode
+    }),
   });
   if (!response.ok) {
     throw new Error('Failed to create job');

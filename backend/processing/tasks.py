@@ -12,7 +12,12 @@ def extract_video_frames(self, job_id: int):
     try:
         video_asset = job.media_assets.filter(asset_type=MediaAssetType.VIDEO).first()
         if not video_asset:
-            raise FrameExtractionException("No VIDEO asset found for this job.")
+            image_asset = job.media_assets.filter(asset_type=MediaAssetType.IMAGE).first()
+            if image_asset:
+                job.processing_phase = "Image post detected. Skipping frame extraction."
+                job.save(update_fields=['processing_phase'])
+                return {"status": "success", "extracted_count": 0, "message": "Image post bypass"}
+            raise FrameExtractionException("No media asset found for this job.")
             
         job.processing_phase = "Extracting frames and generating thumbnails..."
         job.save(update_fields=['processing_phase'])
@@ -98,7 +103,7 @@ def extract_ocr_text(self, job_id: int):
         job.processing_phase = "OCR extraction completed successfully."
         job.save(update_fields=['processing_phase'])
         
-        return {"status": "success", "transcript_length": len(result['unified_transcript'])}
+        return {"status": "success", "ocr_text_length": len(result['unified_transcript'])}
         
     except OcrExtractionException as e:
         job.status = AnalysisJobStatus.FAILED
@@ -127,7 +132,26 @@ def extract_audio_transcription(self, job_id: int):
     try:
         video_asset = job.media_assets.filter(asset_type=MediaAssetType.VIDEO).first()
         if not video_asset:
-            raise AudioExtractionException("No VIDEO asset found for this job.")
+            image_asset = job.media_assets.filter(asset_type=MediaAssetType.IMAGE).first()
+            if image_asset:
+                job.processing_phase = "Image post detected. Skipping audio transcription."
+                job.save(update_fields=['processing_phase'])
+                # Create empty transcript for downstream processing
+                MediaAsset.objects.create(
+                    job=job,
+                    asset_type='TRANSCRIPT_RESULTS',
+                    file_path='',
+                    processing_status='TRANSCRIPTION_COMPLETED',
+                    metadata={
+                        "job_id": job_id, 
+                        "unified_transcript": "", 
+                        "segments": [],
+                        "audio_detected": False,
+                        "speech_detected": False
+                    }
+                )
+                return {"status": "success", "message": "Image post bypass"}
+            raise AudioExtractionException("No media asset found for this job.")
             
         job.processing_phase = "Extracting audio track..."
         job.save(update_fields=['processing_phase'])
@@ -135,10 +159,34 @@ def extract_audio_transcription(self, job_id: int):
         service = AudioExtractionService(job_id)
         audio_path = service.extract_audio(video_asset.file_path)
         
-        job.processing_phase = "Transcribing audio with Whisper..."
-        job.save(update_fields=['processing_phase'])
-        
-        transcript_data = service.transcribe_audio(audio_path)
+        if audio_path is None:
+            # Silent video bypass
+            transcript_data = {
+                "job_id": job_id,
+                "unified_transcript": "",
+                "segments": [],
+                "audio_detected": False,
+                "speech_detected": False
+            }
+            job.processing_phase = "No audio stream found. Skipping transcription."
+            job.save(update_fields=['processing_phase'])
+        else:
+            job.processing_phase = "Transcribing audio with Whisper..."
+            job.save(update_fields=['processing_phase'])
+            
+            print(f"!!! Starting Whisper transcription for job {job_id} !!!")
+            transcript_data = service.transcribe_audio(audio_path)
+            
+            transcript = transcript_data.get('unified_transcript', '')
+            print(f"!!! Whisper transcription completed! Length: {len(transcript)} characters !!!")
+            print(f"!!! Transcript preview: {transcript[:100]}... !!!")
+            
+            transcript_data['audio_detected'] = True
+            transcript_data['speech_detected'] = len(transcript) > 0
+            
+            # Clean up the temporary wav file
+            if os.path.exists(audio_path):
+                os.remove(audio_path)
         
         # Create a TRANSCRIPT_RESULTS MediaAsset to store the output
         MediaAsset.objects.create(
@@ -149,14 +197,15 @@ def extract_audio_transcription(self, job_id: int):
             metadata=transcript_data
         )
         
-        # Clean up the temporary wav file
-        if os.path.exists(audio_path):
-            os.remove(audio_path)
-        
         job.processing_phase = "Audio transcription completed successfully."
         job.save(update_fields=['processing_phase'])
         
-        return {"status": "success", "transcript_length": len(transcript_data['unified_transcript'])}
+        return {
+            "status": "success", 
+            "audio_detected": transcript_data['audio_detected'],
+            "speech_detected": transcript_data['speech_detected'],
+            "transcript_length": len(transcript_data['unified_transcript'])
+        }
         
     except AudioExtractionException as e:
         job.status = AnalysisJobStatus.FAILED

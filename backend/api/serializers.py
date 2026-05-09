@@ -28,3 +28,4 @@ class AnalysisJobSerializer(serializers.ModelSerializer):
 
 class CreateAnalysisJobSerializer(serializers.Serializer):
     instagram_url = serializers.URLField()
+    analysis_mode = serializers.ChoiceField(choices=['text', 'audio', 'frame'], required=False, default='text')

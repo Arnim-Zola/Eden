@@ -10,90 +10,124 @@ class InstagramIngestionService:
     def __init__(self, job_id: int):
         self.job_id = job_id
         self.download_dir = os.path.join(settings.BASE_DIR.parent, 'media', str(job_id))
+        if os.path.exists(self.download_dir):
+            import shutil
+            try:
+                shutil.rmtree(self.download_dir)
+            except Exception:
+                pass
         os.makedirs(self.download_dir, exist_ok=True)
     
     def download_media(self, url: str) -> dict:
         """
-        Navigates to the Instagram URL and intercepts network requests to find the media CDN link.
-        Downloads the media and returns metadata and local file path.
+        Uses yt-dlp to extract metadata and download the media (handling DASH merging).
         """
-        video_url = None
-        image_url = None
+        import subprocess
+        import json
         
-        def handle_response(response):
-            nonlocal video_url, image_url
-            response_url = response.url
-            # Ignore tiny assets
-            if not video_url:
-                content_type = response.headers.get('content-type', '')
-                if 'video' in content_type or '.mp4' in response_url:
-                    video_url = response_url
-            if not image_url:
-                content_length = int(response.headers.get('content-length', 0))
-                # Heuristic: the main post image is typically reasonably large
-                if content_length > 50000 and ('jpg' in response_url or 'webp' in response_url):
-                    image_url = response_url
+        print("!!! USING NEW YT-DLP INGESTION PIPELINE !!!")
+        print(f"!!! Starting ingestion for URL: {url} !!!")
+        
+        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        output_template = os.path.join(self.download_dir, 'source_media.mp4')
+        cookies_path = os.path.join(settings.BASE_DIR, 'config', 'cookies.txt')
+        
+        cookie_args = []
+        if os.path.exists(cookies_path) and os.path.getsize(cookies_path) > 100:
+            print("!!! USING COOKIES.TXT FOR AUTHENTICATED INGESTION !!!")
+            cookie_args = ['--cookies', cookies_path]
+        else:
+            print("!!! WARNING: cookies.txt not found or empty. Attempting anonymous ingestion. Instagram may block this request. !!!")
 
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                viewport={"width": 1280, "height": 800}
-            )
-            page = context.new_page()
+        # 1. Extract metadata first
+        dump_command = [
+            'yt-dlp', 
+            '--user-agent', user_agent,
+        ] + cookie_args + [
+            '--no-playlist',
+            '--dump-json',
+            '--quiet', '--no-warnings',
+            url
+        ]
+
+        try:
+            res = subprocess.run(dump_command, check=True, capture_output=True, text=True)
+            info_dict = json.loads(res.stdout)
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr.strip() if e.stderr else "Unknown yt-dlp error"
+            print(f"!!! YT-DLP METADATA EXTRACTION FAILED !!!\n!!! STDERR: {error_msg} !!!")
             
-            page.on("response", handle_response)
-            
+            error_lower = error_msg.lower()
+            if "login required" in error_lower or "rate-limit" in error_lower:
+                raise InstagramIngestionException("RATE_LIMIT_OR_LOGIN: Instagram blocked access. Rate limit reached or login required.")
+            elif "private" in error_lower:
+                raise InstagramIngestionException("PRIVATE_CONTENT: This post is private and cannot be accessed.")
+            elif "deleted" in error_lower or "not found" in error_lower or "not available" in error_lower:
+                raise InstagramIngestionException("CONTENT_NOT_FOUND: The post may have been deleted or does not exist.")
+            else:
+                raise InstagramIngestionException(f"METADATA_EXTRACTION_FAILED: {error_msg}")
+        except json.JSONDecodeError:
+            raise InstagramIngestionException("METADATA_PARSE_FAILED: Failed to parse yt-dlp JSON output.")
+
+        # 2. Download the media
+        download_command = [
+            'yt-dlp',
+            '--user-agent', user_agent,
+        ] + cookie_args + [
+            '-o', output_template,
+            '--no-playlist',
+            '--no-warnings',
+            url
+        ]
+
+        try:
+            print(f"!!! EXECUTING YT-DLP COMMAND: {' '.join(download_command)}")
+            res = subprocess.run(download_command, check=True, capture_output=True, text=True)
+            print("!!! YT-DLP DOWNLOAD COMPLETED SUCCESSFULLY !!!")
+            if res.stdout:
+                print(f"!!! YT-DLP OUTPUT: {res.stdout[:500]}")
+        except subprocess.CalledProcessError as e:
+            # Fallback for images or if DASH format fails
+            fallback_command = [
+                'yt-dlp',
+                '--user-agent', user_agent,
+            ] + cookie_args + [
+                '-o', output_template,
+                '--no-playlist',
+                '--no-warnings',
+                url
+            ]
             try:
-                # We don't wait for networkidle because Instagram polls constantly
-                page.goto(url, wait_until='domcontentloaded', timeout=15000)
-                
-                # Wait up to 10 seconds for the media url to be intercepted
-                for _ in range(20):
-                    if video_url:
-                        break
-                    page.wait_for_timeout(500)
-            except Exception as e:
-                # If it times out but we found media, that's fine
-                if not video_url and not image_url:
-                    browser.close()
-                    raise InstagramIngestionException(f"Failed to load Instagram page: {str(e)}")
+                subprocess.run(fallback_command, check=True, capture_output=True)
+            except Exception as e2:
+                raise InstagramIngestionException(f"yt-dlp failed to download media: {str(e2)}")
 
-            page_title = ""
-            try:
-                page_title = page.title()
-            except:
-                pass
-                
-            browser.close()
-
-        media_url_to_download = video_url or image_url
-        if not media_url_to_download:
-            raise InstagramIngestionException("No media URL could be intercepted. The account might be private or the post deleted.")
+        # 2. Identify the downloaded file
+        downloaded_files = os.listdir(self.download_dir)
+        source_files = [f for f in downloaded_files if f.startswith('source_media')]
+        
+        if not source_files:
+            raise InstagramIngestionException("yt-dlp completed but no source_media file was found.")
             
-        is_video = bool(video_url)
-        file_extension = ".mp4" if is_video else ".jpg"
-        file_name = f"source_media{file_extension}"
+        source_files.sort(key=lambda x: 0 if x.endswith('.mp4') else 1)
+        file_name = source_files[0]
         local_path = os.path.join(self.download_dir, file_name)
         
-        # Download the actual file from the intercepted CDN link
-        try:
-            r = requests.get(media_url_to_download, stream=True, timeout=20)
-            r.raise_for_status()
-            with open(local_path, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
-        except Exception as e:
-            raise InstagramIngestionException(f"Failed to download media file from CDN: {str(e)}")
-            
+        is_video = local_path.endswith('.mp4')
         file_size = os.path.getsize(local_path)
-            
+        print(f"!!! FINAL INGESTED FILE: {local_path} (Size: {file_size} bytes, Video: {is_video}) !!!")
+        page_title = info_dict.get('title') or info_dict.get('description', 'Instagram Post')[:50]
+
         return {
             'local_path': local_path,
             'file_size': file_size,
             'is_video': is_video,
             'metadata': {
                 'page_title': page_title,
-                'source_url': url
+                'source_url': url,
+                'uploader': info_dict.get('uploader'),
+                'upload_date': info_dict.get('upload_date'),
+                'view_count': info_dict.get('view_count'),
+                'like_count': info_dict.get('like_count')
             }
         }

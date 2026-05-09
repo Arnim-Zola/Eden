@@ -35,12 +35,20 @@ def ingest_instagram_media(self, job_id: int):
         return {"status": "success", "asset_type": asset_type, "path": result['local_path']}
         
     except InstagramIngestionException as e:
+        if self.request.retries < self.max_retries:
+            job.processing_phase = f"Ingestion attempt {self.request.retries + 1} failed. Retrying..."
+            job.save(update_fields=['processing_phase'])
+            raise self.retry(exc=e, countdown=5)
+            
         job.status = AnalysisJobStatus.FAILED
-        job.error_message = str(e)
-        job.processing_phase = "Ingestion failed."
+        job.error_message = "Instagram media could not be retrieved: " + str(e)
+        job.processing_phase = "Ingestion failed permanently."
         job.save(update_fields=['status', 'error_message', 'processing_phase'])
-        # Optional: retry if we suspect transient failure
-        # raise self.retry(exc=e, countdown=10)
+        
+        # Terminate the Celery chain to prevent downstream tasks from running
+        self.request.callbacks = None
+        self.request.errbacks = None
+        self.request.chain = None
         return {"status": "failed", "error": str(e)}
         
     except Exception as e:
@@ -48,4 +56,9 @@ def ingest_instagram_media(self, job_id: int):
         job.error_message = f"Unexpected error during ingestion: {str(e)}"
         job.processing_phase = "Ingestion failed due to unexpected error."
         job.save(update_fields=['status', 'error_message', 'processing_phase'])
+        
+        # Terminate the Celery chain
+        self.request.callbacks = None
+        self.request.errbacks = None
+        self.request.chain = None
         return {"status": "failed", "error": str(e)}

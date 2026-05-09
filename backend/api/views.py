@@ -16,22 +16,41 @@ class AnalysisJobViewSet(viewsets.ModelViewSet):
         serializer = CreateAnalysisJobSerializer(data=request.data)
         if serializer.is_valid():
             instagram_url = serializer.validated_data['instagram_url']
+            analysis_mode = serializer.validated_data.get('analysis_mode', 'text')
+            
+            # Map to model choices
+            mode_mapping = {
+                'text': 'TEXT',
+                'audio': 'AUDIO',
+                'frame': 'FRAME'
+            }
+            analysis_type = mode_mapping.get(analysis_mode, 'TEXT')
             
             # Basic validation to ensure it's a valid URL for our system
             if not ('instagram.com' in instagram_url or 'tiktok.com' in instagram_url or 'youtube.com' in instagram_url or 'twitter.com' in instagram_url or 'x.com' in instagram_url):
                 pass # Accept it anyway for demo purposes, but we could restrict it
             
             try:
-                job = AnalysisJob.objects.create(instagram_url=instagram_url)
+                job = AnalysisJob.objects.create(
+                    instagram_url=instagram_url,
+                    analysis_type=analysis_type
+                )
                 
-                # Trigger the full ingestion, processing, and analysis pipeline
-                chain(
-                    ingest_instagram_media.si(job.id),
-                    extract_video_frames.si(job.id),
-                    extract_audio_transcription.si(job.id),
-                    extract_ocr_text.si(job.id),
-                    analyze_job_content.si(job.id)
-                ).apply_async()
+                # Dynamic task routing based on mode
+                pipeline = [ingest_instagram_media.si(job.id)]
+                
+                if analysis_mode == 'text':
+                    pipeline.extend([
+                        extract_video_frames.si(job.id),
+                        extract_ocr_text.si(job.id)
+                    ])
+                elif analysis_mode == 'audio':
+                    pipeline.append(extract_audio_transcription.si(job.id))
+                # Frame mode skip for now, handled in future MVP
+                
+                pipeline.append(analyze_job_content.si(job.id))
+                
+                chain(*pipeline).apply_async()
                 
                 return Response(AnalysisJobSerializer(job).data, status=status.HTTP_201_CREATED)
             except Exception as e:

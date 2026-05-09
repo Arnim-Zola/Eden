@@ -112,22 +112,32 @@ class OcrExtractionService:
         
     def extract_from_image(self, image_path: str) -> list:
         """
-        Extracts text blocks from a single image.
-        Returns a list of dicts with bounding boxes, text, and confidence.
+        Extracts text blocks from a single image using CV2 preprocessing.
         """
         if not os.path.exists(image_path):
             raise OcrExtractionException(f"Image not found: {image_path}")
             
-        results = self.reader.readtext(image_path)
+        img = cv2.imread(image_path)
+        if img is None:
+            raise OcrExtractionException(f"Failed to read image with cv2: {image_path}")
+            
+        # Preprocessing: Grayscale + Contrast Enhancement
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        enhanced = clahe.apply(gray)
+            
+        results = self.reader.readtext(enhanced)
         blocks = []
         for (bbox, text, prob) in results:
-            if prob > 0.3: # Filter very low confidence noise
-                blocks.append({
-                    "text": text,
-                    "confidence": float(prob),
-                    # Convert coordinates to int for JSON serialization
-                    "bbox": [[int(coord) for coord in point] for point in bbox]
-                })
+            if prob > 0.45: # Higher confidence threshold
+                # Garbage filtering: require decent alphanumeric ratio
+                alnum_count = sum(c.isalnum() for c in text)
+                if len(text) > 0 and (alnum_count / len(text)) > 0.4:
+                    blocks.append({
+                        "text": text,
+                        "confidence": float(prob),
+                        "bbox": [[int(coord) for coord in point] for point in bbox]
+                    })
         return blocks
         
     def extract_from_manifest(self, manifest_data: dict) -> dict:
@@ -184,21 +194,27 @@ class AudioExtractionService:
         # Initialize whisper model. Using "base" for MVP speed.
         self.model = whisper.load_model("base")
         
-    def extract_audio(self, video_path: str) -> str:
+    def extract_audio(self, video_path: str):
         """
         Extracts audio using FFmpeg into a 16kHz mono WAV file optimized for Whisper.
-        Returns the path to the extracted WAV file.
+        Returns the path to the extracted WAV file, or None if no audio stream exists.
         """
         if not os.path.exists(video_path):
             raise AudioExtractionException(f"Video file not found: {video_path}")
             
         audio_path = os.path.join(self.media_dir, "extracted_audio.wav")
         
-        # FFmpeg command to extract audio:
-        # -vn: no video
-        # -acodec pcm_s16le: 16-bit PCM
-        # -ar 16000: 16kHz sample rate
-        # -ac 1: 1 channel (mono)
+        # 1. Use ffprobe to detect if an audio stream actually exists
+        probe_command = ['ffprobe', '-i', video_path, '-show_streams', '-select_streams', 'a', '-loglevel', 'error']
+        try:
+            probe_result = subprocess.run(probe_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if not probe_result.stdout.strip():
+                # No audio stream found, silent video!
+                return None
+        except Exception as e:
+            raise AudioExtractionException(f"Failed to probe video for audio streams: {str(e)}")
+        
+        # 2. Extract audio if stream exists
         command = [
             'ffmpeg', '-y', '-i', video_path, 
             '-vn', '-acodec', 'pcm_s16le', 
@@ -235,13 +251,21 @@ class AudioExtractionService:
                 "segments": []
             }
             
+            last_text = ""
             for segment in result.get('segments', []):
-                transcript_data["segments"].append({
-                    "start": segment['start'],
-                    "end": segment['end'],
-                    "text": segment['text'].strip(),
-                    "confidence": segment.get('avg_logprob', 0.0) # Whisper logprob proxy for confidence
-                })
+                text = segment['text'].strip()
+                # Basic hallucination deduplication: skip if identical to last segment
+                if text and text != last_text:
+                    transcript_data["segments"].append({
+                        "start": segment['start'],
+                        "end": segment['end'],
+                        "text": text,
+                        "confidence": segment.get('avg_logprob', 0.0)
+                    })
+                    last_text = text
+                
+            # Rebuild unified transcript from deduplicated segments
+            transcript_data["unified_transcript"] = " ".join(s["text"] for s in transcript_data["segments"])
                 
             return transcript_data
             
