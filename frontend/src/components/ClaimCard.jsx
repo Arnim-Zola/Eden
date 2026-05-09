@@ -17,27 +17,31 @@ const ClaimCard = ({ claim }) => {
   const riskClasses = getRiskColor(claim.classification_label);
 
   return (
-    <div className={`p-6 rounded-2xl border backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl group flex flex-col h-full ${riskClasses}`}>
-      <div className="flex justify-between items-start mb-4 gap-4">
-        <h3 className="text-[17px] font-bold leading-snug flex-1 text-white group-hover:text-white/90 transition-colors">{claim.claim_text}</h3>
-        <span className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-widest rounded-full bg-black/50 border border-white/5 whitespace-nowrap">
+    <div className={`p-4 rounded-xl border backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-lg group block ${riskClasses}`}>
+      <div className="flex justify-between items-start mb-2 gap-3">
+        <h3 className="text-sm font-semibold leading-snug text-slate-100 group-hover:text-white transition-colors">{claim.claim_text}</h3>
+        <span className="shrink-0 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest rounded bg-slate-950/60 border border-slate-700/50 whitespace-nowrap mt-0.5">
           {claim.classification_label.replace(/_/g, ' ')}
         </span>
       </div>
-      <p className="text-sm opacity-80 mb-6 leading-relaxed flex-1 font-light">{claim.contextual_reasoning}</p>
+      <p className="text-xs text-slate-400 opacity-90 mb-3 leading-relaxed font-light">{claim.contextual_reasoning}</p>
       
-      <div className="flex justify-between items-center text-xs opacity-60 border-t border-white/10 pt-4 mt-auto">
-        <span className="px-2.5 py-1 bg-black/30 rounded-md font-mono tracking-wide uppercase flex items-center gap-1.5">
-           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-           </svg>
+      <div className="flex justify-between items-center text-[10px] opacity-80 border-t border-slate-700/50 pt-2.5">
+        <span className="px-2 py-0.5 bg-slate-900/50 rounded font-mono tracking-wider uppercase flex items-center justify-center gap-1.5 text-slate-400 border border-slate-700/30 w-max">
+           <div className="w-3 h-3 flex items-center justify-center shrink-0">
+             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+             </svg>
+           </div>
            {claim.detection_source}
         </span>
-        <span className="font-semibold flex items-center gap-1.5">
-           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-           </svg>
-           {(claim.confidence_score * 100).toFixed(0)}% Confidence
+        <span className="font-semibold flex items-center justify-center gap-1.5 text-slate-400 w-max">
+           <div className="w-3 h-3 flex items-center justify-center shrink-0">
+             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+             </svg>
+           </div>
+           {(claim.confidence_score * 100).toFixed(0)}% Conf
         </span>
       </div>
     </div>

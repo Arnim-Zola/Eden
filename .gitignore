@@ -26,3 +26,5 @@ Thumbs.db
 # Build
 dist/
 build/
+
+backend/config/cookies.txt

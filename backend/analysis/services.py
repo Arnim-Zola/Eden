@@ -30,17 +30,26 @@ class GeminiAnalysisService:
         self.client = genai.Client(api_key=api_key)
         self.model_name = "gemini-2.5-flash"
 
-    def analyze_content(self, ocr_text: str, transcript_text: str) -> dict:
+    def analyze_content(self, ocr_text: str, transcript_text: str, analysis_type: str = 'FULL') -> dict:
+        mode_instruction = ""
+        if analysis_type == 'TEXT':
+            mode_instruction = "You are running in TEXT ONLY mode. Focus EXCLUSIVELY on evaluating the provided visual OCR text. Do not invent context to fill gaps between fragmented OCR lines."
+        elif analysis_type == 'AUDIO':
+            mode_instruction = "You are running in AUDIO ONLY mode. Focus EXCLUSIVELY on evaluating the provided audio transcript. Ignore missing visual context."
+
         prompt = f"""
         You are an expert fact-checking AI designed to analyze media content for misinformation.
         Your goal is to extract factual claims from the provided text and classify them.
         
+        {mode_instruction}
+        
         Reasoning Requirements:
         1. Prioritize contextual reasoning over absolute truth claims.
-        2. Support uncertainty and insufficient evidence outputs (e.g. use UNVERIFIED if unsure). Do not guess or hallucinate if you don't have enough information.
-        3. Avoid overconfident hallucinations.
+        2. Support uncertainty and insufficient evidence outputs. STRICTLY use the 'UNVERIFIED' label if the text/transcript is too fragmented or noisy to confidently assess the claim.
+        3. Avoid overconfident hallucinations. Do not guess or hallucinate if you don't have enough information.
         4. You do not have live internet access, so evaluate based on general knowledge and internal consistency.
         5. Produce explainable reasoning in the 'contextual_reasoning' field.
+        6. Deduplicate claims: Do not output the exact same claim multiple times. Group similar assertions.
 
         Here is the text extracted from the video frames via OCR:
         <ocr_text>
