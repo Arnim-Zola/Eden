@@ -159,3 +159,17 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+
+# ── Media / Upload settings ───────────────────────────────────────────────────
+MEDIA_ROOT = BASE_DIR.parent / 'media'
+MEDIA_URL  = '/media/'
+
+# Allow large video uploads (Reels can be 50–200MB; cap at 500MB)
+DATA_UPLOAD_MAX_MEMORY_SIZE  = None               # disable in-memory limit for multipart
+FILE_UPLOAD_MAX_MEMORY_SIZE  = 10 * 1024 * 1024  # 10MB → use temp file for larger
+UPLOAD_MAX_FILE_SIZE_BYTES   = 500 * 1024 * 1024 # hard reject above 500MB
+
+# ── Media cache settings ──────────────────────────────────────────────────────
+MEDIA_CACHE_ENABLED  = True  # set False in production if desired
+MEDIA_CACHE_TTL_DAYS = 0     # 0 = never expire (ideal for dev/testing)
+
