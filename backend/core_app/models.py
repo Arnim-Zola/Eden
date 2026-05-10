@@ -15,6 +15,10 @@ class AnalysisType(models.TextChoices):
     FRAME = 'FRAME', 'Frame Analysis'
     FULL = 'FULL', 'Full Analysis'
 
+class IngestionSource(models.TextChoices):
+    URL    = 'URL',    'Instagram / URL'
+    UPLOAD = 'UPLOAD', 'Local Upload'
+
 class MediaAssetType(models.TextChoices):
     VIDEO = 'VIDEO', 'Video'
     AUDIO = 'AUDIO', 'Audio'
@@ -53,7 +57,13 @@ class AnalysisJob(models.Model):
     """
     The root entity of the Eden system. Tracks the entire lifecycle of an analysis request.
     """
-    instagram_url = models.URLField(max_length=1024, help_text="The URL of the Instagram content to analyze.")
+    # nullable — upload jobs have no URL
+    instagram_url = models.URLField(max_length=1024, blank=True, null=True,
+                                    help_text="The URL of the Instagram content to analyze.")
+    original_filename = models.CharField(max_length=255, blank=True,
+                                         help_text="Original filename for upload jobs.")
+    ingestion_source = models.CharField(max_length=10, choices=IngestionSource.choices,
+                                        default=IngestionSource.URL)
     analysis_type = models.CharField(max_length=20, choices=AnalysisType.choices, default=AnalysisType.FULL)
     status = models.CharField(max_length=20, choices=AnalysisJobStatus.choices, default=AnalysisJobStatus.PENDING)
     processing_phase = models.TextField(blank=True, help_text="Human-readable status updates.")
@@ -111,6 +121,10 @@ class ClaimRecord(models.Model):
     classification_label = models.CharField(max_length=30, choices=ClaimClassification.choices)
     confidence_score = models.FloatField(help_text="Confidence score of the classification (0.0 to 1.0).")
     contextual_reasoning = models.TextField(help_text="Summary of the contextual reasoning leading to this classification.")
+    
+    # Evidence chain references
+    transcript_reference = models.TextField(blank=True, help_text="Snippet or timestamp from the audio transcript.")
+    ocr_reference = models.TextField(blank=True, help_text="Snippet or block from the on-screen OCR text.")
     
     created_at = models.DateTimeField(auto_now_add=True)
 

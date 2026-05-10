@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getJobStatus } from '../services/api';
+import PipelineStepper from './PipelineStepper';
 
 const JobStatus = ({ jobId, onComplete, onReset }) => {
   const [status, setStatus] = useState(null);
@@ -27,74 +28,92 @@ const JobStatus = ({ jobId, onComplete, onReset }) => {
   }, [jobId, onComplete]);
 
   if (!status) return (
-    <div className="mt-8 max-w-sm mx-auto p-6 bg-slate-900/80 border border-slate-700/50 rounded-2xl backdrop-blur-xl shadow-2xl flex flex-col items-center justify-center text-center">
-      <div className="w-10 h-10 flex items-center justify-center shrink-0 mb-3">
-        <svg className="animate-spin h-8 w-8 text-blue-500 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-      </div>
-      <h3 className="text-base font-bold text-white">Connecting...</h3>
-      <p className="text-xs text-slate-400 mt-1">Establishing connection to processing engine.</p>
-    </div>
+    <PipelineStepper processingPhase="Initializing..." jobId={jobId} />
   );
 
-  return (
-    <div className="mt-8 max-w-sm mx-auto p-6 bg-slate-900/80 border border-slate-700/50 rounded-2xl backdrop-blur-xl shadow-2xl overflow-hidden relative transition-all duration-500 text-center">
-      {status.status !== 'COMPLETED' && status.status !== 'FAILED' && (
-        <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-pulse-slow w-full"></div>
-      )}
-      
-      <div className="flex justify-center mb-3">
-        {status.status === 'FAILED' ? (
-          <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
-            <svg className="w-5 h-5 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </div>
-        ) : status.status === 'COMPLETED' ? (
-          <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
-             <svg className="w-5 h-5 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-        ) : (
-          <div className="w-10 h-10 flex items-center justify-center shrink-0">
-            <svg className="animate-spin h-8 w-8 text-blue-400 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
+  if (status.status === 'FAILED') {
+    const raw = status.error_message || '';
+
+    // Parse structured error code from backend
+    let heading = 'Analysis Failed';
+    let detail = raw;
+    let hint = null;
+
+    if (raw.includes('COOKIES_REQUIRED')) {
+      heading = 'Authentication Required';
+      detail = 'Instagram requires a valid session cookie to access this content.';
+      hint = (
+        <ol style={{ textAlign: 'left', margin: '10px 0 0', padding: '0 0 0 18px', fontSize: 12, lineHeight: 1.7, color: 'rgba(232,230,224,0.55)', fontFamily: 'var(--font-sans)' }}>
+          <li>Install the <strong style={{ color: '#E8E6E0' }}>"Get cookies.txt LOCALLY"</strong> Chrome/Firefox extension</li>
+          <li>Log into <strong style={{ color: '#E8E6E0' }}>instagram.com</strong> in your browser</li>
+          <li>Click the extension → Export cookies for this tab</li>
+          <li>Save the file to <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11, background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 3 }}>backend/config/cookies.txt</code></li>
+          <li>Restart Django and retry</li>
+        </ol>
+      );
+    } else if (raw.includes('RATE_LIMIT_OR_LOGIN')) {
+      heading = 'Rate Limited';
+      detail = 'Instagram is temporarily blocking this request. Wait 10–15 minutes and try again, or use a fresh session cookie.';
+    } else if (raw.includes('PRIVATE_CONTENT')) {
+      heading = 'Private Content';
+      detail = 'This post is private. Your Instagram account must follow the creator to analyze it.';
+    } else if (raw.includes('CONTENT_NOT_FOUND')) {
+      heading = 'Content Not Found';
+      detail = 'This post may have been deleted or the URL is incorrect.';
+    }
+
+    return (
+      <div style={{
+        marginTop: 32, maxWidth: 520, width: '100%', margin: '32px auto 0',
+        padding: '24px', background: 'var(--bg-card)',
+        border: '1px solid rgba(232,69,60,0.20)',
+        borderRadius: 'var(--radius-lg)', textAlign: 'center',
+      }}>
+        <div style={{
+          fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.14em',
+          textTransform: 'uppercase', color: '#E8453C', marginBottom: 10,
+        }}>
+          {heading}
+        </div>
+        <div style={{
+          padding: '12px 16px',
+          background: 'rgba(232,69,60,0.07)',
+          border: '1px solid rgba(232,69,60,0.15)',
+          borderRadius: 'var(--radius-md)',
+          color: 'rgba(232,230,224,0.7)',
+          fontSize: 13, fontFamily: 'var(--font-sans)', lineHeight: 1.6,
+          marginBottom: hint ? 0 : 20,
+          textAlign: 'left',
+        }}>
+          {detail}
+          {hint}
+        </div>
+        {onReset && (
+          <button
+            onClick={onReset}
+            style={{
+              marginTop: 20, display: 'inline-flex', alignItems: 'center',
+              justifyContent: 'center', fontFamily: 'var(--font-mono)',
+              fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase',
+              borderRadius: 'var(--radius-sm)', padding: '8px 20px',
+              background: 'transparent', color: 'rgba(232,230,224,0.4)',
+              border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer',
+              transition: 'border-color 150ms, color 150ms',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = '#E8E6E0'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(232,230,224,0.4)'; }}
+          >
+            Start Over
+          </button>
         )}
       </div>
+    );
+  }
 
-      <h2 className="text-base font-bold text-white mb-1">
-        {status.status === 'FAILED' ? "Analysis Failed" : status.status === 'COMPLETED' ? "Analysis Complete" : "Processing Content"}
-      </h2>
-      
-      <p className="text-slate-400 text-xs mb-3">{status.processing_phase || 'Initializing...'}</p>
-      
-      {status.status !== 'COMPLETED' && status.status !== 'FAILED' && (
-         <div className="w-full bg-slate-800 rounded-full h-1 overflow-hidden">
-           <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-full w-2/3 animate-pulse rounded-full"></div>
-         </div>
-      )}
-      
-      {status.error_message && (
-        <div className="mt-6 animate-fade-in-up">
-          <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-sm text-left">
-            {status.error_message}
-          </div>
-          {onReset && (
-            <button 
-              onClick={onReset}
-              className="mt-4 w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors border border-slate-700 shadow text-sm font-semibold"
-            >
-              Start Over
-            </button>
-          )}
-        </div>
-      )}
+
+  return (
+    <div className="w-full">
+      <PipelineStepper processingPhase={status.processing_phase || 'Initializing...'} jobId={jobId} />
     </div>
   );
 };

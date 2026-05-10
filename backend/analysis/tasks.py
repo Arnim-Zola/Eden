@@ -55,6 +55,19 @@ def analyze_job_content(job_id: int):
             report_data = service.analyze_content(ocr_text=ocr_text, transcript_text=transcript_text, analysis_type=job.analysis_type)
 
         with transaction.atomic():
+            # Add raw and structured source data to report_data for rich provenance display
+            report_data['ocr_text'] = ocr_text
+            report_data['transcript_text'] = transcript_text
+            
+            # Include structured data if available
+            ocr_asset = job.media_assets.filter(asset_type='OCR_RESULTS').first()
+            if ocr_asset:
+                report_data['ocr_results'] = ocr_asset.metadata
+            
+            transcript_asset = job.media_assets.filter(asset_type='TRANSCRIPT_RESULTS').first()
+            if transcript_asset:
+                report_data['transcript_results'] = transcript_asset.metadata
+            
             # Create Report
             report = AnalysisReport.objects.create(report_data=report_data)
             job.report = report
@@ -81,7 +94,9 @@ def analyze_job_content(job_id: int):
                     detection_source=source,
                     classification_label=label,
                     confidence_score=claim_data.get('confidence_score', 0.0),
-                    contextual_reasoning=claim_data.get('contextual_reasoning', 'No reasoning provided.')
+                    contextual_reasoning=claim_data.get('contextual_reasoning', 'No reasoning provided.'),
+                    transcript_reference=claim_data.get('transcript_reference', ''),
+                    ocr_reference=claim_data.get('ocr_reference', '')
                 )
 
             job.status = AnalysisJobStatus.COMPLETED

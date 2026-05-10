@@ -1,3 +1,40 @@
+@import './tokens.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    body {
+        background: white !important;
+        color: black !important;
+    }
+
+    /* Reset bento grid to single column flow for print */
+    .print-report-container {
+        display: block !important;
+        padding: 40px !important;
+    }
+
+    .print-only-report {
+        display: block !important;
+        position: relative !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* Reset layout containers that force 100vh or overflow:hidden */
+    #root, #root > div, main {
+        height: auto !important;
+        overflow: visible !important;
+        display: block !important;
+    }
+
+    /* Hide only the explicitly marked elements */
+    .no-print {
+        display: none !important;
+    }
+}

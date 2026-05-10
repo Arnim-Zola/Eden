@@ -1,0 +1,202 @@
+Eden — Premium AI Intelligence Platform: Complete Redesign Vision
+Preface: What Eden Must Become
+Eden is not a URL checker. It is not a fact-checker. It is an intelligence instrument — a system that ingests raw media, tears it apart acoustically and visually, and reconstructs its meaning as structured evidence. The current frontend treats this as a form submission. The new Eden must treat it as an operation.
+The emotional register must shift: from "I submitted a link and got results" to "I ran an intelligence operation and received a classified report."
+
+1. UX Philosophy
+The three laws of Eden's UX:
+One — Gravity, not friction. Every transition should feel like something falling into place, not something being clicked through. The user's attention should be pulled forward by the product's momentum, not pushed by navigation affordances.
+Two — Evidence, not interface. The chrome disappears; the intelligence surfaces. Eden's UI should feel nearly invisible — a clean aperture through which analysis flows. No decorative gradients, no "loading" copy that says nothing, no generic button labels.
+Three — The machine is visible. Unlike most AI tools that hide their reasoning in a black box, Eden's competitive advantage is showing the work. Every phase of processing, every signal extracted, every confidence score — should feel like watching a precision instrument at work.
+
+2. Visual Identity Direction
+Codename: "Cold Signal"
+The current aesthetic is Cyberpunk — neon blobs, purple gradients, generic dark mode. This must be replaced entirely.
+The new Eden visual identity borrows from three unlikely references:
+Bloomberg Terminal — information density as a design choice, not a failure. Data should be packed tightly and legibly, never artificially spacious.
+Palantir / Gotham — the vocabulary of intelligence platforms. Stark, high-contrast, deeply serious. Color is reserved for signal, never decoration.
+Vercel Dashboard — the restraint of modern infrastructure UX. A single, perfectly-weighted typeface. 1px borders. Silence as a design element.
+Palette:
+The entire interface lives in a near-black chromatic spectrum. Background: #080808. Surface: #0F0F0F. Cards: #141414. Borders: rgba(255,255,255,0.07) — barely visible, just enough to feel architectural.
+Typography and UI chrome: #E8E6E0 — warm off-white, never pure white, which reads as harsh.
+Accent system — deeply intentional and used sparingly:
+
+Risk: Danger #E8453C, Warning #D4841A, Safe #2A9D5C — these are the only colored elements in most views
+Active/Processing: #4A7CF7 — a cool signal blue, used only during live operations
+Confirmed False: a muted, desaturated red that doesn't scream, but disturbs
+Verified True: a muted green, understated confidence
+
+The principle: the report colors are the only colors. Everything else is grayscale. This makes risk indicators land with enormous visual weight even when they're subtle.
+Noise texture: A very fine grain overlay (2–3% opacity SVG noise pattern) on all dark surfaces. This prevents flatness and gives the interface a tactile, almost physical quality. Think the texture of a matte screen rather than a glossy web page.
+
+3. Typography Philosophy
+Primary: Geist (Vercel's typeface) or Inter at very precise optical sizes. The goal is a face that reads as engineered, not designed.
+Monospace: Geist Mono — used for all data values, confidence scores, timestamps, and job IDs. The distinction between proportional (human language) and monospace (machine data) is itself a semantic signal.
+Scale:
+
+Page title / platform name: 13px / uppercase / tracking 0.15em — almost a whisper
+Section headers: 11px / uppercase / tracking 0.1em / rgba(255,255,255,0.4) — metadata-weight
+Body / claim text: 15px / regular — the only text at comfortable reading size
+Data values: 24–48px / monospace / #E8E6E0 — numbers are protagonists
+Captions / labels: 11px / rgba(255,255,255,0.35)
+
+The hierarchy rule: Size does almost no work. Weight and opacity do all the work. This is how premium terminal-adjacent interfaces feel — restrained type scale, enormous contrast.
+
+4. Application Shell Architecture
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.25s;
+    animation-timing-function: cubic-bezier(0.19, 1, 0.22, 1);
+  }
+VvisualizeVvisualize show_widgetThe shell has four persistent zones that never collapse or hide:
+Command Rail (far left, 52px) — icon-only navigation. No labels. Five icons max: Dashboard, Operations, Library, Settings, and a ⌘ command palette trigger at top. The rail uses a slight frosted glass treatment — it floats over the surface. On mobile this becomes a bottom tab bar.
+Context Panel (220px, collapsible) — the operations history sidebar. Shows past and active analyses as a stack of minimal cards: job ID (monospace, truncated), media thumbnail (16×16 favicon-size), timestamp, and a single colored risk dot. The active operation is always pinned at top. This panel makes Eden feel like a real intelligence workstation — not a fresh page every session.
+Main Workspace (fluid) — the bento dashboard. This is where the redesign is most radical. No tabs. Everything visible simultaneously in a responsive grid.
+Detail Drawer (360px, slides in from right) — opens when any claim is selected. Shows deep evidence: exact transcript location, OCR co-location, confidence breakdown, and a chain-of-evidence visualization. Dismisses on click-outside or Esc.
+
+5. The New User Journey
+Redesigned as five named acts:
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.25s;
+    animation-timing-function: cubic-bezier(0.19, 1, 0.22, 1);
+  }
+VvisualizeVvisualize show_widgetAct I — Initiate: The hero is not a centered card. It is a command bar — like a Raycast or Spotlight input — that slides down from the top of an otherwise empty workspace. The URL field is wide, full-width, and appears with a barely visible pulsing cursor. Mode selection is handled with a three-state toggle above the field, not three heavy cards below it. When the user begins typing, the field subtly illuminates — a #4A7CF7 left border glow. There is no submit button until a valid URL is detected; the button materializes from the right edge of the input.
+Act II — Ingest: On submission, the command bar morphs — it doesn't disappear. It shrinks and rises to become the persistent header bar, locking in the URL as a reference artifact. The Instagram thumbnail (or video thumbnail) immediately appears in the top-left of the workspace as a fixed reference point. This media card never moves for the duration of the session. The user always knows what they analyzed.
+Act III — Process: The workspace doesn't show a spinner. It shows the pipeline stepper — a live visualization of the backend Celery task chain. Each node in the pipeline illuminates as it becomes active. This is detailed below.
+Act IV — Report: The bento dashboard assembles — cells animate in from opacity 0 with a stagger delay. It feels like a classified document being declassified section by section.
+Act V — Investigate: The user clicks a claim. The detail drawer slides in from the right. Simultaneously, the relevant passage in the transcript panel is highlighted, and the OCR panel scrolls to the co-located text. Everything is cross-linked. The experience feels like pulling a thread.
+
+6. The Processing Visualization — "Operation Active"
+This is Eden's highest-value differentiator and deserves the most radical redesign.
+Current state: A spinner with phase text. A blinking loading bar.
+Proposed: The Signal Pipeline
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.25s;
+    animation-timing-function: cubic-bezier(0.19, 1, 0.22, 1);
+  }
+VvisualizeVvisualize show_widgetThe pipeline stepper occupies the workspace during processing. Five named stages with clear states: done (teal check), active (blue pulse with animated ring), queued (gray, numbered).
+Below the stepper: the Signal Log — a monospace streaming feed of machine events. As the backend progresses, new log lines appear with typewriter timing. This is not marketing copy. It is real data: codec information, file sizes, model names, token counts. A technically sophisticated user (journalist, researcher, security analyst) finds this deeply reassuring. It answers the question "what is happening?" with precision.
+The elapsed time counter is always visible. Duration is intelligence — knowing a 3-minute video took 45 seconds to transcribe sets expectations.
+The critical interaction: The workspace does not go blank during processing. The media preview panel (top-left) is already visible. The context panel already shows this operation in the history. The user is inside the tool, not waiting outside it.
+
+7. The Bento Report Dashboard
+This is the centerpiece of the redesign. The word "tabs" should be removed from Eden's vocabulary.
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.25s;
+    animation-timing-function: cubic-bezier(0.19, 1, 0.22, 1);
+  }
+VvisualizeVvisualize show_widgetThe bento grid provides a "single pane of glass" — everything visible at once. Cell breakdown:
+Media Preview (top-left): Thumbnail + source handle + duration + platform badge. This is the anchor — it never moves. Even in the detail drawer, the media stays visible.
+Risk Score (top-center-left): A single large number — the headline credibility score. Backed by a semi-circular gauge (rendered as CSS arc, not a third-party chart). Color of the number itself codes the risk level. No explanation needed at a glance.
+Intelligence Summary (top-right, 2-col span): Two to four sentences of auto-generated narrative. Not a list of facts. A story of what the analysis found. "This 3-minute reel makes four verifiable claims. Three are demonstrably false." This reframes Eden from a data tool to an analyst.
+Claims Strip (full-width horizontal scroll): Not expandable cards — minimal horizontal chips. Each chip: verdict badge + truncated claim text. Clicking opens the Detail Drawer. The strip is horizontally scrollable on all screen sizes.
+Transcript Panel (bottom-left): A windowed view of the transcript, always scrolled to the most relevant section. When the user selects a claim, the transcript auto-scrolls and highlights the corresponding passage with a colored wash — same color as the claim's verdict.
+Signal Distribution (bottom-center): A minimal horizontal bar chart showing claim breakdown by verdict. This lets a researcher immediately see the profile of the piece — is it mostly false? Mostly unverifiable? One glance answers that.
+OCR / Provenance (bottom-right): Extracted on-screen text, displayed as a vertical list of quoted strings. Each string is a potential provenance signal — chyrons, lower-thirds, watermarks. These are linked to the claim that references them.
+Processing Timeline (bottom strip): A proportional Gantt bar showing how long each stage took. This is retrospective — it only appears after completion. It signals transparency: Eden shows you how the sausage was made.
+
+8. The Claim Detail Drawer
+When a user clicks any claim chip, a 380px drawer slides in from the right. Inside:
+Claim verbatim — the exact words extracted, in quotes, at a large enough size to read comfortably.
+Verdict badge — FALSE / PLAUSIBLE / UNVERIFIABLE / TRUE — with a short (one-line) rationale.
+Confidence arc — a minimal semi-circular gauge showing AI confidence (0–100%). Below it, three contributing signals in a compact table: Transcript match, OCR corroboration, Prior knowledge signal.
+Evidence chain — two linked references:
+
+Transcript: clicking highlights the relevant passage in the main transcript panel (the drawer stays open; the background panel responds)
+OCR: clicking highlights the on-screen text region in the OCR panel
+
+Timestamp reference — "Claim made at 0:14 in the video" — with a small playhead scrubber if timestamp data is available.
+This drawer is the investigation mode. It turns Eden from a report into a tool.
+
+9. Motion & Animation Philosophy
+The three animation principles:
+Purposeful: Nothing moves unless it is communicating state. The pipeline stage transition from queued → active → done has precise timing (200ms ease-out for the ring expansion, 300ms ease-in for the fill transition). No ambient animations that loop without meaning.
+Physical: Transitions should feel like objects moving in space, not like CSS properties changing. The detail drawer slides in from a real place (off the right edge). Claim chips animate in with staggered fade-up (40ms between each chip). The bento cells materialize in reading order.
+Restrained: The sophistication of the motion system is felt more than seen. A user should never consciously think "nice animation." They should feel a sense of control — like the interface responds immediately and precisely to their actions.
+Specific motion specs:
+
+URL bar morph to header bar: 400ms, cubic-bezier(0.4, 0, 0.2, 1), shared element transition via Framer Motion's layoutId
+Pipeline node activation: 200ms ring pulse outward, then 300ms fill transition. Active ring uses a conic-gradient CSS animation (1.2s loop) — this is the only looping animation in the product
+Signal log lines: Each new line appears with a 0 → 1 opacity transition over 80ms. No slide. Just materialization.
+Bento cells assembly: Each cell fades in and translates 8px upward over 240ms, staggered by 60ms per cell, in reading order
+Detail drawer open: 280ms slide from translateX(100%) to translateX(0), ease-out cubic
+Claim chip hover: 80ms border color transition to the verdict color. No scale. No shadow. Just the border.
+Confidence arc fill: Counting animation from 0 to final score over 800ms, ease-out
+
+Reduced motion: All animations respect prefers-reduced-motion. The reduced experience collapses all transitions to simple opacity fades at 150ms.
+
+10. Component Design System
+The design system is built in four layers:
+Layer 1 — Tokens: HSL-based color scales, spacing increments (4/8/12/16/24/32/48/64px), border radius values (4/8/12px), and font size/weight/tracking pairs defined as CSS custom properties.
+Layer 2 — Primitives: <Button>, <Badge>, <Input>, <Card>, <Tooltip>, <Divider>. Each has exactly the variants it needs — no more. <Button> has ghost, primary, and destructive. That's it.
+Layer 3 — Domain Components: <ClaimChip>, <PipelineStage>, <RiskGauge>, <SignalLogLine>, <ConfidenceArc>, <TranscriptHighlight>. These are specific to Eden and should be documented as such.
+Layer 4 — Layout Templates: <BentoGrid>, <DetailDrawer>, <ContextPanel>, <CommandRail>. These are not reusable outside Eden — they are the product's structural skeleton.
+The <ClaimChip> spec in detail:
+
+Height: 32px
+Padding: 0 12px
+Border: 1px, colored by verdict (--color-false, --color-unverified, etc.)
+Background: 8% opacity of verdict color (using the same CSS variable)
+Left badge: 2px wide colored bar (same verdict color, full opacity) — this is the strongest visual signal
+Text: 13px monospace, truncated at 180px max-width
+Hover: border opacity increases to 40%; cursor pointer
+Active/selected: background opacity increases to 15%, border full opacity
+
+
+11. Information Hierarchy Redesign
+Current hierarchy: everything is equal weight. All claims are cards at the same size. The executive summary competes visually with individual claims.
+New hierarchy — three distinct tiers:
+Tier 1 — Strategic: Risk Score (number) + Intelligence Summary (narrative). These answer "is this dangerous?" in 5 seconds. They live at the top of the bento, largest visual footprint.
+Tier 2 — Operational: The Claims Strip + Transcript + OCR panels. These answer "what specifically was found?" They are the working surface of the dashboard.
+Tier 3 — Forensic: The Detail Drawer. This answers "how do we know?" It is accessed intentionally, not passively consumed.
+Most users never need Tier 3. Power users live there.
+
+12. Multimodal Storytelling
+The most important conceptual shift: Eden currently presents three types of data (claims, transcript, OCR) as three tabs. The new Eden presents one story with three lenses.
+The narrative arc of an Eden report:
+
+"We analyzed [media]. Here is what it claims. Here is where it claims it. Here is how confident we are. Here is the evidence that contradicts it."
+
+This arc should be readable in 30 seconds at the Tier 1 level, and investigatable for 30 minutes at the Tier 3 level.
+The multimodal linkage system is what makes Eden unique: every claim has a transcript timestamp, an OCR region, and a confidence score. When these three are visually cross-linked (click a claim → transcript highlights → OCR highlights), the user understands how the AI thinks in a way that builds trust.
+
+13. Mobile Experience Redesign
+The mobile experience is not a "responsive version." It is a separate flow optimized for consumption (not investigation).
+Mobile layout decisions:
+The Command Rail becomes a bottom navigation bar — five icons, the active one labeled. Standard mobile pattern, no reinvention needed.
+The Context Panel becomes a bottom sheet — activated by pulling up from the bottom nav or tapping a "Recent" tab icon. It peeks at 120px and expands to full screen.
+The Bento Dashboard stacks vertically in a fixed order: Risk Score (compact horizontal card) → Media Preview → Intelligence Summary → Claims (full-width chips, vertical scroll) → Transcript (collapsed to 5 lines with "expand" trigger) → OCR (collapsed similarly).
+The Detail Drawer becomes a full-screen bottom sheet — slides up from below, occupying 92% of the viewport height.
+The Processing view: the pipeline stepper collapses to a single progress bar with the active stage name below it. The Signal Log is accessible via a "View log" toggle, but not shown by default on mobile.
+Mobile typography: Body text increases to 16px. Monospace data values: 14px. Claims text truncates at 2 lines maximum.
+
+14. Navigation & Routing Architecture
+Current: zero routing. All state in App.jsx.
+Proposed routing structure:
+
+/ — Dashboard/home: command bar, context panel with history
+/operation/new — Active operation: redirected to here on submission
+/operation/:id — Completed report: shareable, permanent URL
+/library — All past analyses: filterable grid
+/settings — API key, model preferences, export options
+
+The /operation/:id URL is the most important new feature. It enables report sharing — a researcher can send a colleague a link to a specific report. The recipient sees the full bento dashboard without needing to re-analyze.
+
+15. Premium SaaS Transformation: Five Decisive Upgrades
+One — Shareable reports. The /operation/:id URL exists and is permanent. Reports don't expire. A user can bookmark, email, or publish the URL.
+Two — The command palette. ⌘K opens a Raycast-style command palette: search past operations, start a new analysis, jump to a report. This is the power user interface and makes Eden feel like a professional tool, not a webpage.
+Three — Export architecture. Every report has a one-click Export menu: PDF (formatted intelligence report), JSON (raw API payload), Markdown (structured summary). This makes Eden immediately useful in professional workflows.
+Four — The credibility timeline. If timestamps are available, claims are plotted on a video timeline — a horizontal scrubber showing when in the video each claim appears, color-coded by verdict. A researcher can see "the misinformation escalates in the final minute."
+Five — State persistence. The context panel history is persisted to localStorage (or a lightweight backend). Every past analysis is one click away. Eden stops being a disposable tool and becomes a research environment.
+
+Final Note: What Eden Should Feel Like
+A journalist opens Eden before filing a story. Not because they have to — because they trust it. They paste a URL, watch the pipeline illuminate stage by stage, and within 90 seconds see a clean bento board that tells them exactly what the media claims, what's false, and where the evidence is. They click a false claim. The transcript highlights. They screenshot the detail drawer. They close Eden and finish the story.
+That journalist doesn't think about the UI. They think about the story.
+That is the measure of a successful redesign.

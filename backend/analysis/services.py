@@ -14,6 +14,8 @@ class ClaimModel(BaseModel):
     classification_label: str = Field(description="Classification: VERIFIED_LIKELY_TRUE, PLAUSIBLE, UNVERIFIED, OPINION_OR_SATIRE, MISLEADING_CONTEXT, LIKELY_FALSE, HIGH_RISK")
     confidence_score: float = Field(description="Confidence score between 0.0 and 1.0. Lower scores indicate uncertainty.")
     contextual_reasoning: str = Field(description="Summary of reasoning leading to this classification. Explain why this might be true, false, or uncertain without making absolute truth claims. Be cautious and explain uncertainty if evidence is insufficient.")
+    transcript_reference: str = Field(default="", description="The specific snippet or timestamp from the audio transcript that supports this claim.")
+    ocr_reference: str = Field(default="", description="The specific snippet or block from the on-screen OCR text that supports this claim.")
 
 class ReportModel(BaseModel):
     claims: List[ClaimModel] = Field(description="List of factual claims extracted and analyzed from the content.")
@@ -49,7 +51,8 @@ class GeminiAnalysisService:
         3. Avoid overconfident hallucinations. Do not guess or hallucinate if you don't have enough information.
         4. You do not have live internet access, so evaluate based on general knowledge and internal consistency.
         5. Produce explainable reasoning in the 'contextual_reasoning' field.
-        6. Deduplicate claims: Do not output the exact same claim multiple times. Group similar assertions.
+        6. Identify EVIDENCE: For every claim, you MUST populate 'transcript_reference' (if it came from audio) or 'ocr_reference' (if it came from on-screen text) with the exact supporting text snippet.
+        7. Deduplicate claims: Do not output the exact same claim multiple times. Group similar assertions.
 
         Here is the text extracted from the video frames via OCR:
         <ocr_text>
