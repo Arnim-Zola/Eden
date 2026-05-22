@@ -20,8 +20,8 @@ class CoreAppConfig(AppConfig):
         
         if is_server or is_celery:
             if os.path.exists(cookies_path) and os.path.getsize(cookies_path) > 100:
-                logger.info("✅ Authenticated ingestion ENABLED: cookies.txt found.")
-                print("\n✅ Authenticated ingestion ENABLED: cookies.txt found.\n")
+                logger.info("[OK] Authenticated ingestion ENABLED: cookies.txt found.")
+                print("\n[OK] Authenticated ingestion ENABLED: cookies.txt found.\n")
             else:
-                logger.warning("⚠️ Authenticated ingestion DISABLED: backend/config/cookies.txt is missing or empty.")
-                print("\n⚠️  Authenticated ingestion DISABLED: backend/config/cookies.txt is missing or empty. Anonymous fallback active.\n")
+                logger.warning("[WARN] Authenticated ingestion DISABLED: backend/config/cookies.txt is missing or empty.")
+                print("\n[WARN] Authenticated ingestion DISABLED: backend/config/cookies.txt is missing or empty. Anonymous fallback active.\n")

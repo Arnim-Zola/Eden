@@ -181,14 +181,21 @@ class InstagramIngestionService:
             return stub
 
     def _download_audio(self, base_args: list, output_template: str, url: str) -> str:
-        """AUDIO mode: download best audio stream via yt-dlp."""
+        """
+        AUDIO mode: download best combined stream (video+audio) if available,
+        to ensure we have a media preview for reels/videos.
+        """
         import subprocess
+        # [DIAGNOSTIC] Verification of updated ingestion logic
+        print(f"!!! INGESTION_DEBUG: downloading combined media for AUDIO mode !!!")
+        
+        # Proven format string that works for Instagram reels to get both video and audio
         cmd = base_args + [
-            '--format', 'bestaudio/best',
+            '--format', 'bestvideo+bestaudio/best',
             '-o', output_template,
             '--no-playlist', '--no-warnings', url,
         ]
-        print(f"!!! AUDIO DOWNLOAD: {' '.join(cmd[-5:])} !!!")
+        print(f"!!! AUDIO+VIDEO DOWNLOAD: {' '.join(cmd[-5:])} !!!")
         try:
             subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)
         except subprocess.CalledProcessError as e:

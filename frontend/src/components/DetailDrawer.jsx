@@ -608,6 +608,111 @@ export default function DetailDrawer({ claim, jobData, onClose, onHighlightTrans
                             </div>
                         </div>
                     </motion.div>
+ 
+                    {/* ═══════════════════════════════════════════════════
+              5.5. VERIFYING SOURCES
+          ═══════════════════════════════════════════════════ */}
+                    {claim.related_sources && claim.related_sources.length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3, duration: 0.35 }}
+                            style={{ padding: "18px 20px 0" }}
+                        >
+                            <div style={{
+                                fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
+                                fontSize: 9,
+                                letterSpacing: "0.12em",
+                                color: "rgba(232,230,224,0.3)",
+                                textTransform: "uppercase",
+                                marginBottom: 8,
+                            }}>
+                                Verifying Sources
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                {claim.related_sources.map((source, sIdx) => {
+                                    let domain = "";
+                                    try {
+                                        domain = new URL(source.url).hostname.replace('www.', '');
+                                    } catch (e) {
+                                        domain = "web reference";
+                                    }
+
+                                    return (
+                                        <motion.a
+                                            key={sIdx}
+                                            href={source.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            whileHover={{ x: 3, borderColor: "rgba(74,124,247,0.4)" }}
+                                            whileTap={{ scale: 0.98 }}
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "flex-start",
+                                                gap: 10,
+                                                width: "100%",
+                                                background: "rgba(255,255,255,0.02)",
+                                                border: "1px solid rgba(255,255,255,0.06)",
+                                                borderRadius: 8,
+                                                padding: "10px 12px",
+                                                cursor: "pointer",
+                                                textDecoration: "none",
+                                                transition: "border-color 0.15s, background 0.15s",
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.background = "rgba(74,124,247,0.04)"}
+                                            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.02)"}
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4A7CF7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginTop: 2, flexShrink: 0 }}>
+                                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                                            </svg>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{
+                                                    fontFamily: "var(--font-sans, 'Geist', sans-serif)",
+                                                    fontSize: 12,
+                                                    fontWeight: 500,
+                                                    color: "#E8E6E0",
+                                                    lineHeight: 1.35,
+                                                    overflow: "hidden",
+                                                    textOverflow: "ellipsis",
+                                                    display: "-webkit-box",
+                                                    WebkitLineClamp: 2,
+                                                    WebkitBoxOrient: "vertical"
+                                                }}>
+                                                    {source.title}
+                                                </div>
+                                                <div style={{
+                                                    fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
+                                                    fontSize: 9,
+                                                    color: "#4A7CF7",
+                                                    marginTop: 3,
+                                                    letterSpacing: "0.02em"
+                                                }}>
+                                                    {domain}
+                                                </div>
+                                                {source.snippet && (
+                                                    <div style={{
+                                                        fontFamily: "var(--font-sans, 'Geist', sans-serif)",
+                                                        fontSize: 11,
+                                                        color: "rgba(232,230,224,0.45)",
+                                                        marginTop: 4,
+                                                        lineHeight: 1.4,
+                                                        overflow: "hidden",
+                                                        textOverflow: "ellipsis",
+                                                        display: "-webkit-box",
+                                                        WebkitLineClamp: 2,
+                                                        WebkitBoxOrient: "vertical"
+                                                    }}>
+                                                        {source.snippet}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </motion.a>
+                                    );
+                                })}
+                            </div>
+                        </motion.div>
+                    )}
 
                     {/* ═══════════════════════════════════════════════════
               6. TIMESTAMP

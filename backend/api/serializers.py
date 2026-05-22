@@ -16,7 +16,7 @@ class ClaimRecordSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'claim_text', 'detection_source', 'classification_label', 
             'confidence_score', 'contextual_reasoning', 'transcript_reference', 
-            'ocr_reference', 'created_at',
+            'ocr_reference', 'related_sources', 'created_at',
             # Aliases
             'reasoning', 'confidence', 'verdict', 'text', 'claim'
         ]
