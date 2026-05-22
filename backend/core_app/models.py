@@ -24,6 +24,7 @@ class MediaAssetType(models.TextChoices):
     AUDIO = 'AUDIO', 'Audio'
     FRAME_DIRECTORY = 'FRAME_DIRECTORY', 'Frame Directory'
     IMAGE = 'IMAGE', 'Image'
+    THUMBNAIL = 'THUMBNAIL', 'Thumbnail'
 
 class ClaimSource(models.TextChoices):
     OCR = 'OCR', 'OCR'
@@ -125,6 +126,7 @@ class ClaimRecord(models.Model):
     # Evidence chain references
     transcript_reference = models.TextField(blank=True, help_text="Snippet or timestamp from the audio transcript.")
     ocr_reference = models.TextField(blank=True, help_text="Snippet or block from the on-screen OCR text.")
+    related_sources = models.JSONField(default=list, blank=True, help_text="List of top search results matching this claim.")
     
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -163,9 +163,13 @@ export default function AppShell({
 
     if (isMobile) {
         return (
-            <div style={{ display: "flex", flexDirection: "column", minHeight: "100dvh", background: "#080808" }}>
+            <div style={{ display: "flex", flexDirection: "column", minHeight: "100dvh", background: "#060608", position: "relative", overflow: "hidden" }}>
+                {/* Ambient Background Glows */}
+                <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: '80vw', height: '80vw', borderRadius: '50%', filter: 'blur(80px)', pointerEvents: 'none', zIndex: 0 }} className="ambient-glow-1" />
+                <div style={{ position: 'absolute', bottom: '-10%', right: '-20%', width: '90vw', height: '90vw', borderRadius: '50%', filter: 'blur(100px)', pointerEvents: 'none', zIndex: 0 }} className="ambient-glow-2" />
+
                 {/* Main workspace */}
-                <main style={{ flex: 1, overflowY: "auto", paddingBottom: 64 }}>
+                <main style={{ flex: 1, overflowY: "auto", paddingBottom: 64, position: "relative", zIndex: 10 }}>
                     {children}
                 </main>
 
@@ -191,14 +195,18 @@ export default function AppShell({
 
     // ── Desktop ──
     return (
-        <div style={{ display: "flex", height: "100dvh", background: "#080808", overflow: "hidden" }}>
-            <div className="no-print">
+        <div style={{ display: "flex", height: "100dvh", background: "#060608", overflow: "hidden", position: "relative" }}>
+            {/* Ambient Background Glows */}
+            <div style={{ position: 'absolute', top: '-10%', left: '20%', width: '40vw', height: '40vw', borderRadius: '50%', filter: 'blur(120px)', pointerEvents: 'none', zIndex: 0 }} className="ambient-glow-1" />
+            <div style={{ position: 'absolute', bottom: '-10%', right: '10%', width: '45vw', height: '45vw', borderRadius: '50%', filter: 'blur(150px)', pointerEvents: 'none', zIndex: 0 }} className="ambient-glow-2" />
+
+            <div className="no-print" style={{ position: "relative", zIndex: 10 }}>
                 <CommandRail onOpenPalette={onOpenPalette} />
             </div>
-            <div className="no-print">
+            <div className="no-print" style={{ position: "relative", zIndex: 10 }}>
                 <ContextPanel operations={operations} activeId={activeId} onClear={onClearHistory} />
             </div>
-            <main style={{ flex: 1, overflowY: "auto", minWidth: 0 }}>
+            <main style={{ flex: 1, overflowY: "auto", minWidth: 0, position: "relative", zIndex: 10 }}>
                 {children}
             </main>
         </div>

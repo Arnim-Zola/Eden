@@ -227,6 +227,17 @@ def extract_audio_transcription(self, job_id: int):
         job.processing_phase = "Extracting audio track…"
         job.save(update_fields=['processing_phase'])
 
+        # ── Mandatory: Extract thumbnail for video assets (Always run, even on cache hit) ──
+        service = AudioExtractionService(job_id)
+        if media_asset.asset_type == MediaAssetType.VIDEO:
+            thumb_path = service.extract_thumbnail(media_asset.file_path)
+            if thumb_path:
+                MediaAsset.objects.get_or_create(
+                    job=job, asset_type=MediaAssetType.THUMBNAIL, 
+                    defaults={'file_path': thumb_path, 'processing_status': 'COMPLETED'}
+                )
+        # ─────────────────────────────────────────────────────────────────────────────────
+
         # ── Transcript cache read ─────────────────────────────────────────────
         cache = _get_cache(job)
         if cache and job.instagram_url:
@@ -246,7 +257,6 @@ def extract_audio_transcription(self, job_id: int):
                 }
         # ─────────────────────────────────────────────────────────────────────
 
-        service = AudioExtractionService(job_id)
         # Works for both VIDEO (extracts audio track) and AUDIO-only files (converts to WAV)
         audio_path = service.extract_audio(media_asset.file_path)
 

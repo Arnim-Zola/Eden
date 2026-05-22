@@ -1,21 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Clock, Zap, Upload, FileVideo, CheckCircle } from 'lucide-react';
+import { Search, X, Clock, Zap, Upload, FileVideo, CheckCircle, ShieldAlert, Cpu } from 'lucide-react';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { uploadMedia } from '../services/api';
 
 // ── Mode selector data ────────────────────────────────────────────────────────
-// FRAME mode is future scope — not available yet.
 const MODES = [
     {
         id: 'text',
-        label: 'Text',
+        label: 'Text Focus',
         hint: 'Image posts · screenshots · infographics · text-heavy reels',
         description: 'Extracts on-screen text via OCR',
     },
     {
         id: 'audio',
-        label: 'Audio',
+        label: 'Audio Focus',
         hint: 'Interviews · speeches · podcasts · talking-head reels',
         description: 'Transcribes speech via Whisper',
     },
@@ -41,10 +40,9 @@ function formatElapsed(s) {
 
 // ── Idle / hero state ─────────────────────────────────────────────────────────
 function IdleBar({ url, onUrlChange, onFocus, onSubmit, selectedMode, onModeChange, isFocused, isSubmitting }) {
-    // Submit requires both a URL and a selected mode
     const canSubmit = url.trim().length > 0 && !!selectedMode;
     const inputRef = useRef(null);
-    const isValid = url.trim().length > 0;  // URL validity (independent of mode)
+    const isValid = url.trim().length > 0;
     const isMobile = useMediaQuery('(max-width: 767px)');
 
     return (
@@ -55,9 +53,8 @@ function IdleBar({ url, onUrlChange, onFocus, onSubmit, selectedMode, onModeChan
                 maxWidth: isMobile ? 'none' : '680px',
                 margin: '0 auto',
             }}
-            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         >
-            {/* Label */}
             <motion.p
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -72,7 +69,7 @@ function IdleBar({ url, onUrlChange, onFocus, onSubmit, selectedMode, onModeChan
                     paddingLeft: '2px',
                 }}
             >
-                New operation
+                New Analysis Operation
             </motion.p>
 
             {/* Input row */}
@@ -80,42 +77,28 @@ function IdleBar({ url, onUrlChange, onFocus, onSubmit, selectedMode, onModeChan
                 style={{
                     display: 'flex',
                     alignItems: 'center',
-                    background: 'var(--color-surface)',
+                    background: 'rgba(15, 15, 22, 0.6)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
                     border: isFocused
-                        ? '1px solid var(--color-signal-blue, #4A7CF7)'
-                        : '1px solid var(--color-border)',
-                    borderRadius: isMobile ? '10px' : '10px',
-                    padding: '0 16px',
-                    height: '56px',
+                        ? '1px solid rgba(59, 130, 246, 0.4)'
+                        : '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '12px',
+                    padding: '0 18px',
+                    height: '58px',
                     gap: '12px',
-                    transition: 'border-color 150ms ease, box-shadow 150ms ease',
+                    transition: 'all 0.3s var(--ease-spring)',
                     boxShadow: isFocused
-                        ? '0 0 0 3px rgba(74,124,247,0.08)'
-                        : 'none',
+                        ? '0 0 25px rgba(59, 130, 246, 0.12), inset 0 0 10px rgba(59, 130, 246, 0.05)'
+                        : '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
                     position: 'relative',
                     overflow: 'hidden',
                 }}
             >
-                {/* Left border accent when focused */}
-                <motion.div
-                    animate={{ scaleY: isFocused ? 1 : 0, opacity: isFocused ? 1 : 0 }}
-                    transition={{ duration: 0.15 }}
-                    style={{
-                        position: 'absolute',
-                        left: 0,
-                        top: '12px',
-                        bottom: '12px',
-                        width: '2px',
-                        background: 'var(--color-signal-blue, #4A7CF7)',
-                        borderRadius: '2px',
-                        transformOrigin: 'center',
-                    }}
-                />
-
                 <Search
-                    size={16}
+                    size={18}
                     strokeWidth={1.5}
-                    style={{ color: 'var(--color-text-muted)', flexShrink: 0 }}
+                    style={{ color: isFocused ? '#3B82F6' : 'var(--color-text-muted)', flexShrink: 0, transition: 'color 0.2s' }}
                 />
 
                 <input
@@ -123,8 +106,9 @@ function IdleBar({ url, onUrlChange, onFocus, onSubmit, selectedMode, onModeChan
                     value={url}
                     onChange={(e) => onUrlChange(e.target.value)}
                     onFocus={onFocus}
+                    onBlur={() => {}}
                     onKeyDown={(e) => e.key === 'Enter' && canSubmit && !isSubmitting && onSubmit()}
-                    placeholder="Paste Instagram URL to analyze…"
+                    placeholder="Paste Instagram post or reel URL to analyze..."
                     style={{
                         flex: 1,
                         width: '100%',
@@ -135,7 +119,7 @@ function IdleBar({ url, onUrlChange, onFocus, onSubmit, selectedMode, onModeChan
                         fontFamily: 'var(--font-sans)',
                         fontSize: '15px',
                         color: 'var(--color-text-primary)',
-                        caretColor: 'var(--color-signal-blue, #4A7CF7)',
+                        caretColor: '#3B82F6',
                     }}
                 />
 
@@ -149,50 +133,67 @@ function IdleBar({ url, onUrlChange, onFocus, onSubmit, selectedMode, onModeChan
                             transition={{ duration: 0.1 }}
                             onClick={() => onUrlChange('')}
                             style={{
-                                background: 'transparent',
+                                background: 'rgba(255,255,255,0.05)',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: 'var(--color-text-muted)',
+                                color: 'var(--color-text-secondary)',
                                 display: 'flex',
                                 alignItems: 'center',
-                                padding: '4px',
-                                borderRadius: '4px',
+                                padding: '6px',
+                                borderRadius: '6px',
                                 flexShrink: 0,
+                                transition: 'background 0.2s',
                             }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                         >
                             <X size={14} />
                         </motion.button>
                     )}
                 </AnimatePresence>
 
-                {/* Submit — requires URL + mode selection */}
+                {/* Submit button */}
                 <AnimatePresence>
                     {canSubmit && (
                         <motion.button
                             initial={{ opacity: 0, x: 8 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: 8 }}
-                            transition={{ duration: 0.15 }}
+                            transition={{ duration: 0.2, ease: 'easeOut' }}
                             onClick={onSubmit}
                             disabled={isSubmitting}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '6px',
-                                padding: '0 14px',
-                                height: '36px',
-                                borderRadius: '7px',
-                                border: '1px solid var(--color-signal-blue, #4A7CF7)',
+                                padding: '0 16px',
+                                height: '38px',
+                                borderRadius: '8px',
+                                border: '1px solid rgba(59, 130, 246, 0.4)',
                                 background: isSubmitting
-                                    ? 'rgba(74,124,247,0.08)'
-                                    : 'rgba(74,124,247,0.12)',
-                                color: 'var(--color-signal-blue, #4A7CF7)',
+                                    ? 'rgba(59, 130, 246, 0.1)'
+                                    : 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.3) 100%)',
+                                color: '#60A5FA',
                                 fontFamily: 'var(--font-mono)',
-                                fontSize: '11px',
-                                letterSpacing: '0.08em',
+                                fontSize: '12px',
+                                fontWeight: 500,
+                                letterSpacing: '0.04em',
                                 cursor: isSubmitting ? 'not-allowed' : 'pointer',
                                 flexShrink: 0,
-                                transition: 'background 120ms ease',
+                                transition: 'all 0.2s ease',
+                                boxShadow: '0 0 15px rgba(59, 130, 246, 0.15)',
+                            }}
+                            onMouseEnter={e => {
+                                if (!isSubmitting) {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(37, 99, 235, 0.4) 100%)';
+                                    e.currentTarget.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.3)';
+                                }
+                            }}
+                            onMouseLeave={e => {
+                                if (!isSubmitting) {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.3) 100%)';
+                                    e.currentTarget.style.boxShadow = '0 0 15px rgba(59, 130, 246, 0.15)';
+                                }
                             }}
                         >
                             {isSubmitting ? (
@@ -204,11 +205,11 @@ function IdleBar({ url, onUrlChange, onFocus, onSubmit, selectedMode, onModeChan
                                     >
                                         ⟳
                                     </motion.span>
-                                    Initiating
+                                    Analyzing
                                 </>
                             ) : (
                                 <>
-                                    <Zap size={12} strokeWidth={2} />
+                                    <Zap size={13} strokeWidth={2} />
                                     Analyze
                                 </>
                             )}
@@ -217,17 +218,17 @@ function IdleBar({ url, onUrlChange, onFocus, onSubmit, selectedMode, onModeChan
                 </AnimatePresence>
             </motion.div>
 
-            {/* Mode selector — intent cards */}
+            {/* Mode Selector Row */}
             <motion.div
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
                 style={{
                     display: 'flex',
-                    gap: 6,
-                    marginTop: '12px',
+                    gap: 8,
+                    marginTop: '16px',
                     paddingLeft: '2px',
-                    flexWrap: isMobile ? 'wrap' : 'nowrap',
+                    flexDirection: isMobile ? 'column' : 'row',
                 }}
             >
                 {MODES.map((mode) => {
@@ -241,44 +242,51 @@ function IdleBar({ url, onUrlChange, onFocus, onSubmit, selectedMode, onModeChan
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'flex-start',
-                                gap: '3px',
-                                padding: '8px 14px',
-                                borderRadius: '8px',
+                                gap: '4px',
+                                padding: '10px 16px',
+                                borderRadius: '10px',
                                 border: isActive
-                                    ? '1px solid rgba(74,124,247,0.5)'
-                                    : '1px solid var(--color-border)',
+                                    ? '1px solid rgba(59, 130, 246, 0.4)'
+                                    : '1px solid rgba(255, 255, 255, 0.05)',
                                 background: isActive
-                                    ? 'rgba(74,124,247,0.08)'
-                                    : 'transparent',
+                                    ? 'rgba(59, 130, 246, 0.06)'
+                                    : 'rgba(15, 15, 22, 0.25)',
                                 cursor: 'pointer',
-                                transition: 'all 150ms ease',
-                                flex: isMobile ? '1 1 auto' : '0 1 auto',
-                                minWidth: isMobile ? 0 : '130px',
+                                transition: 'all 0.2s ease',
+                                flex: 1,
                                 textAlign: 'left',
+                                boxShadow: isActive ? '0 4px 15px rgba(59, 130, 246, 0.05)' : 'none',
+                            }}
+                            onMouseEnter={e => {
+                                if (!isActive) {
+                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                                }
+                            }}
+                            onMouseLeave={e => {
+                                if (!isActive) {
+                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                                    e.currentTarget.style.background = 'rgba(15, 15, 22, 0.25)';
+                                }
                             }}
                         >
                             <span style={{
                                 fontFamily: 'var(--font-mono)',
                                 fontSize: '11px',
+                                fontWeight: 600,
                                 letterSpacing: '0.08em',
                                 textTransform: 'uppercase',
-                                color: isActive
-                                    ? 'var(--color-signal-blue, #4A7CF7)'
-                                    : 'var(--color-text-secondary)',
-                                transition: 'color 150ms ease',
+                                color: isActive ? '#60A5FA' : 'rgba(243, 244, 246, 0.7)',
+                                transition: 'color 0.2s',
                             }}>
                                 {mode.label}
                             </span>
                             <span style={{
-                                fontFamily: 'var(--font-mono)',
-                                fontSize: '9px',
-                                color: isActive
-                                    ? 'rgba(74,124,247,0.7)'
-                                    : 'var(--color-text-muted)',
-                                letterSpacing: '0.04em',
+                                fontFamily: 'var(--font-sans)',
+                                fontSize: '10px',
+                                color: isActive ? 'rgba(96, 165, 250, 0.75)' : 'var(--color-text-muted)',
                                 lineHeight: 1.4,
-                                transition: 'color 150ms ease',
-                                whiteSpace: isMobile ? 'normal' : 'nowrap',
+                                transition: 'color 0.2s',
                             }}>
                                 {mode.hint}
                             </span>
@@ -286,42 +294,42 @@ function IdleBar({ url, onUrlChange, onFocus, onSubmit, selectedMode, onModeChan
                     );
                 })}
 
-                {/* Prompt: select a mode */}
-                <AnimatePresence>
-                    {isValid && !selectedMode && (
-                        <motion.span
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
+                {/* Selector Help Prompt */}
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', height: '100%', alignSelf: 'center', paddingRight: '4px' }}>
+                    <AnimatePresence>
+                        {isValid && !selectedMode && (
+                            <motion.span
+                                initial={{ opacity: 0, x: -6 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -6 }}
+                                style={{
+                                    fontFamily: 'var(--font-mono)',
+                                    fontSize: '11px',
+                                    color: '#F59E0B',
+                                    letterSpacing: '0.06em',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                }}
+                            >
+                                <span className="animate-pulse">●</span> Select operation focus mode
+                            </motion.span>
+                        )}
+                    </AnimatePresence>
+
+                    {canSubmit && !isMobile && (
+                        <span
                             style={{
-                                marginLeft: 'auto',
                                 fontFamily: 'var(--font-mono)',
                                 fontSize: '10px',
-                                color: 'rgba(232,183,74,0.7)',
-                                alignSelf: 'center',
-                                paddingRight: '2px',
-                                letterSpacing: '0.06em',
+                                color: 'var(--color-text-muted)',
+                                opacity: 0.6,
                             }}
                         >
-                            ← select a mode
-                        </motion.span>
+                            Press Enter ↵ to launch
+                        </span>
                     )}
-                </AnimatePresence>
-
-                {canSubmit && (
-                    <span
-                        style={{
-                            marginLeft: 'auto',
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: '10px',
-                            color: 'var(--color-text-muted)',
-                            alignSelf: 'center',
-                            paddingRight: '2px',
-                        }}
-                    >
-                        ↵ to analyze
-                    </span>
-                )}
+                </div>
             </motion.div>
         </motion.div>
     );
@@ -330,8 +338,6 @@ function IdleBar({ url, onUrlChange, onFocus, onSubmit, selectedMode, onModeChan
 // ── Submitted / header state ──────────────────────────────────────────────────
 function SubmittedBar({ url, onReset, isProcessing, selectedMode }) {
     const elapsed = useElapsed(isProcessing);
-
-    // Truncate URL for display
     const displayUrl = url.length > 55 ? url.slice(0, 52) + '…' : url;
 
     return (
@@ -339,65 +345,60 @@ function SubmittedBar({ url, onReset, isProcessing, selectedMode }) {
             layoutId="command-bar"
             style={{
                 width: '100%',
-                borderBottom: '1px solid var(--color-border)',
-                background: 'var(--color-surface)',
-                backdropFilter: 'blur(8px)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                background: 'rgba(15, 15, 22, 0.7)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
             }}
-            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         >
             <div
                 style={{
                     maxWidth: '1400px',
                     margin: '0 auto',
                     padding: '0 24px',
-                    height: '48px',
+                    height: '52px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '16px',
                 }}
             >
-                {/* Signal indicator */}
                 <motion.div
-                    animate={isProcessing ? { opacity: [1, 0.3, 1] } : { opacity: 1 }}
-                    transition={{ duration: 1.2, repeat: isProcessing ? Infinity : 0 }}
+                    animate={isProcessing ? { scale: [1, 1.2, 1], opacity: [1, 0.4, 1] } : { scale: 1, opacity: 1 }}
+                    transition={{ duration: 1.5, repeat: isProcessing ? Infinity : 0 }}
                     style={{
-                        width: '6px',
-                        height: '6px',
+                        width: '8px',
+                        height: '8px',
                         borderRadius: '50%',
-                        background: isProcessing
-                            ? 'var(--color-signal-blue, #4A7CF7)'
-                            : 'var(--color-success, #2A9D5C)',
+                        background: isProcessing ? '#3B82F6' : '#10B981',
+                        boxShadow: isProcessing ? '0 0 10px #3B82F6' : '0 0 10px #10B981',
                         flexShrink: 0,
                     }}
                 />
 
-                {/* Status label */}
                 <span
                     style={{
                         fontFamily: 'var(--font-mono)',
-                        fontSize: '10px',
+                        fontSize: '11px',
+                        fontWeight: 600,
                         letterSpacing: '0.12em',
                         textTransform: 'uppercase',
-                        color: isProcessing
-                            ? 'var(--color-signal-blue, #4A7CF7)'
-                            : 'var(--color-success, #2A9D5C)',
+                        color: isProcessing ? '#60A5FA' : '#10B981',
                         flexShrink: 0,
                     }}
                 >
-                    {isProcessing ? 'Processing' : 'Complete'}{selectedMode ? ` · ${selectedMode.toUpperCase()}` : ''}
+                    {isProcessing ? 'Analyzing Signal' : 'Completed'}{selectedMode ? ` · ${selectedMode}` : ''}
                 </span>
 
-                {/* Divider */}
                 <div
                     style={{
                         width: '1px',
-                        height: '16px',
-                        background: 'var(--color-border)',
+                        height: '18px',
+                        background: 'rgba(255, 255, 255, 0.08)',
                         flexShrink: 0,
                     }}
                 />
 
-                {/* Locked URL */}
                 <span
                     style={{
                         fontFamily: 'var(--font-mono)',
@@ -412,7 +413,6 @@ function SubmittedBar({ url, onReset, isProcessing, selectedMode }) {
                     {displayUrl}
                 </span>
 
-                {/* Elapsed timer */}
                 {isProcessing && (
                     <motion.div
                         initial={{ opacity: 0 }}
@@ -420,17 +420,17 @@ function SubmittedBar({ url, onReset, isProcessing, selectedMode }) {
                         style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '5px',
+                            gap: '6px',
                             color: 'var(--color-text-muted)',
                             flexShrink: 0,
                         }}
                     >
-                        <Clock size={11} strokeWidth={1.5} />
+                        <Clock size={12} strokeWidth={1.5} />
                         <span
                             style={{
                                 fontFamily: 'var(--font-mono)',
                                 fontSize: '11px',
-                                minWidth: '36px',
+                                minWidth: '38px',
                             }}
                         >
                             {formatElapsed(elapsed)}
@@ -438,28 +438,36 @@ function SubmittedBar({ url, onReset, isProcessing, selectedMode }) {
                     </motion.div>
                 )}
 
-                {/* Reset */}
                 <motion.button
-                    whileHover={{ color: 'var(--color-text-primary)' }}
                     onClick={onReset}
                     style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '5px',
-                        background: 'transparent',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: '6px',
-                        padding: '4px 10px',
-                        color: 'var(--color-text-muted)',
+                        gap: '6px',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '8px',
+                        padding: '6px 12px',
+                        color: 'var(--color-text-secondary)',
                         fontFamily: 'var(--font-mono)',
-                        fontSize: '10px',
-                        letterSpacing: '0.08em',
+                        fontSize: '11px',
+                        letterSpacing: '0.04em',
                         cursor: 'pointer',
                         flexShrink: 0,
-                        transition: 'color 120ms ease, border-color 120ms ease',
+                        transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                        e.currentTarget.style.color = '#F3F4F6';
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                        e.currentTarget.style.color = 'var(--color-text-secondary)';
                     }}
                 >
-                    <X size={11} />
+                    <X size={12} />
                     Reset
                 </motion.button>
             </div>
@@ -473,33 +481,36 @@ function HeroWrapper({ children }) {
         <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             style={{
                 flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '48px 32px',
-                minHeight: '60vh',
+                padding: '64px 24px',
+                minHeight: '80vh',
+                position: 'relative',
+                zIndex: 10,
             }}
         >
-            {/* Platform label */}
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.05 }}
-                style={{ marginBottom: '40px', textAlign: 'center' }}
+                style={{ marginBottom: '36px', textAlign: 'center' }}
             >
                 <h1
                     style={{
                         fontFamily: 'var(--font-sans)',
-                        fontSize: '13px',
-                        fontWeight: 500,
-                        letterSpacing: '0.2em',
-                        textTransform: 'uppercase',
-                        color: 'var(--color-text-muted)',
+                        fontSize: '44px',
+                        fontWeight: 800,
+                        letterSpacing: '-0.03em',
+                        lineHeight: 1.1,
                         margin: 0,
+                        background: 'linear-gradient(135deg, #FFF 30%, #93C5FD 70%, #3B82F6 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
                     }}
                 >
                     Eden
@@ -509,30 +520,75 @@ function HeroWrapper({ children }) {
                         fontFamily: 'var(--font-mono)',
                         fontSize: '11px',
                         color: 'var(--color-text-muted)',
-                        opacity: 0.5,
-                        marginTop: '6px',
-                        letterSpacing: '0.06em',
+                        marginTop: '10px',
+                        letterSpacing: '0.18em',
+                        textTransform: 'uppercase',
+                        fontWeight: 500,
                     }}
                 >
-                    Multimodal intelligence platform
+                    Multimodal Intelligence Platform
                 </p>
             </motion.div>
 
             {children}
+
+            {/* Features showcase */}
+            <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
+                style={{
+                    marginTop: '80px',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+                    gap: '20px',
+                    width: '100%',
+                    maxWidth: '720px',
+                }}
+            >
+                <div className="glass-panel" style={{ padding: '20px', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#60A5FA' }}>
+                        <Cpu size={16} />
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>Multimodal OCR</span>
+                    </div>
+                    <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                        Performs optical character recognition on video frames to index all on-screen assertions.
+                    </p>
+                </div>
+                <div className="glass-panel" style={{ padding: '20px', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10B981' }}>
+                        <CheckCircle size={16} />
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>Audio Transcription</span>
+                    </div>
+                    <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                        Decodes audio tracks via Whisper to capture conversational rhetoric and underlying claims.
+                    </p>
+                </div>
+                <div className="glass-panel" style={{ padding: '20px', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#F59E0B' }}>
+                        <ShieldAlert size={16} />
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>Claim Corroboration</span>
+                    </div>
+                    <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                        Aligns claim parameters, classifies credibility vectors, and calculates overall operations risk.
+                    </p>
+                </div>
+            </motion.div>
         </motion.div>
     );
 }
 
 // ── Tab Switcher ──────────────────────────────────────────────────────────────
 function TabSwitcher({ active, onChange }) {
-    const tabs = [{ id: 'url', label: 'URL' }, { id: 'upload', label: 'Upload' }];
+    const tabs = [{ id: 'url', label: 'Analyze URL' }, { id: 'upload', label: 'Local Upload' }];
     return (
         <div style={{
-            display: 'flex', gap: 2, marginBottom: 12,
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.07)',
-            borderRadius: 8, padding: 3,
-            alignSelf: 'flex-start',
+            display: 'flex', gap: 2, marginBottom: 16,
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            borderRadius: 10, padding: 4,
+            alignSelf: 'center',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
         }}>
             {tabs.map(t => (
                 <button
@@ -540,11 +596,17 @@ function TabSwitcher({ active, onChange }) {
                     onClick={() => onChange(t.id)}
                     style={{
                         fontFamily: 'var(--font-mono)',
-                        fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
-                        padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                        transition: 'background 150ms, color 150ms',
-                        background: active === t.id ? 'rgba(74,124,247,0.15)' : 'transparent',
-                        color: active === t.id ? '#4A7CF7' : 'rgba(232,230,224,0.35)',
+                        fontSize: 10.5,
+                        fontWeight: 600,
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        padding: '6px 16px',
+                        borderRadius: 7,
+                        border: 'none',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        background: active === t.id ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
+                        color: active === t.id ? '#60A5FA' : 'rgba(243, 244, 246, 0.4)',
                     }}
                 >
                     {t.label}
@@ -555,7 +617,6 @@ function TabSwitcher({ active, onChange }) {
 }
 
 // ── Upload Tab ────────────────────────────────────────────────────────────────
-// Upload tab reuses the same MODE definitions as URL tab (TEXT + AUDIO only)
 const UPLOAD_MODES = MODES;
 
 function fmtBytes(b) {
@@ -566,7 +627,7 @@ function fmtBytes(b) {
 }
 
 function UploadTab({ isSubmitting, onUpload, selectedMode, onModeChange }) {
-    const canUploadSubmit = !!selectedMode;  // mode required for upload too
+    const canUploadSubmit = !!selectedMode;
     const [file, setFile] = useState(null);
     const [dragging, setDragging] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -618,7 +679,7 @@ function UploadTab({ isSubmitting, onUpload, selectedMode, onModeChange }) {
         <motion.div
             layoutId="command-bar"
             style={{ width: '100%', maxWidth: isMobile ? 'none' : '680px', margin: '0 auto' }}
-            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         >
             {/* Drop zone */}
             <div
@@ -627,14 +688,14 @@ function UploadTab({ isSubmitting, onUpload, selectedMode, onModeChange }) {
                 onDragLeave={onDragLeave}
                 onClick={() => !file && fileRef.current?.click()}
                 style={{
-                    border: `1.5px dashed ${dragging ? '#4A7CF7' : file ? 'rgba(42,157,92,0.6)' : 'rgba(255,255,255,0.12)'}`,
+                    border: `1.5px dashed ${dragging ? '#3B82F6' : file ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255,255,255,0.08)'}`,
                     borderRadius: 12,
-                    minHeight: 120,
+                    minHeight: 140,
                     display: 'flex', flexDirection: 'column',
                     alignItems: 'center', justifyContent: 'center', gap: 10,
                     cursor: file ? 'default' : 'pointer',
-                    transition: 'border-color 150ms, background 150ms',
-                    background: dragging ? 'rgba(74,124,247,0.05)' : file ? 'rgba(42,157,92,0.04)' : 'transparent',
+                    transition: 'all 0.2s ease',
+                    background: dragging ? 'rgba(59, 130, 246, 0.04)' : file ? 'rgba(16, 185, 129, 0.02)' : 'rgba(15,15,22,0.3)',
                     padding: '24px 20px',
                     position: 'relative',
                     overflow: 'hidden',
@@ -655,18 +716,18 @@ function UploadTab({ isSubmitting, onUpload, selectedMode, onModeChange }) {
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             style={{ textAlign: 'center' }}
                         >
-                            <Upload size={22} style={{ color: 'rgba(232,230,224,0.2)', marginBottom: 8 }} />
+                            <Upload size={24} style={{ color: 'rgba(243,244,246,0.2)', marginBottom: 8 }} />
                             <p style={{
                                 fontFamily: 'var(--font-mono)', fontSize: 11,
-                                color: 'rgba(232,230,224,0.35)', letterSpacing: '0.06em', margin: 0,
+                                color: 'rgba(243,244,246,0.4)', letterSpacing: '0.06em', margin: 0,
                             }}>
-                                {dragging ? 'Release to load' : 'Drop MP4 / MOV here — or click to browse'}
+                                {dragging ? 'Release to drop media file' : 'Drop video file here — or click to browse'}
                             </p>
                             <p style={{
-                                fontFamily: 'var(--font-mono)', fontSize: 9,
-                                color: 'rgba(232,230,224,0.18)', marginTop: 6, letterSpacing: '0.06em',
+                                fontFamily: 'var(--font-sans)', fontSize: 9.5,
+                                color: 'rgba(243,244,246,0.2)', marginTop: 6,
                             }}>
-                                Max 500 MB · MP4 · MOV · AVI · MKV · WEBM
+                                MP4 · MOV · AVI · MKV · WEBM (Max 500 MB)
                             </p>
                         </motion.div>
                     ) : (
@@ -679,24 +740,24 @@ function UploadTab({ isSubmitting, onUpload, selectedMode, onModeChange }) {
                             }}
                         >
                             <div style={{
-                                width: 36, height: 36, borderRadius: 8, flexShrink: 0,
-                                background: 'rgba(42,157,92,0.12)',
-                                border: '1px solid rgba(42,157,92,0.3)',
+                                width: 40, height: 40, borderRadius: 8, flexShrink: 0,
+                                background: 'rgba(16, 185, 129, 0.1)',
+                                border: '1px solid rgba(16, 185, 129, 0.25)',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                             }}>
-                                <FileVideo size={16} style={{ color: '#2A9D5C' }} />
+                                <FileVideo size={18} style={{ color: '#10B981' }} />
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <p style={{
-                                    fontFamily: 'var(--font-mono)', fontSize: 11,
-                                    color: 'rgba(232,230,224,0.8)', margin: 0,
+                                    fontFamily: 'var(--font-mono)', fontSize: 11.5,
+                                    color: 'rgba(243, 244, 246, 0.95)', margin: 0,
                                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                 }}>
                                     {file.name}
                                 </p>
                                 <p style={{
-                                    fontFamily: 'var(--font-mono)', fontSize: 9,
-                                    color: 'rgba(232,230,224,0.3)', marginTop: 3, letterSpacing: '0.06em',
+                                    fontFamily: 'var(--font-mono)', fontSize: 9.5,
+                                    color: 'var(--color-text-muted)', marginTop: 3,
                                 }}>
                                     {fmtBytes(file.size)}
                                 </p>
@@ -704,11 +765,12 @@ function UploadTab({ isSubmitting, onUpload, selectedMode, onModeChange }) {
                             <button
                                 onClick={e => { e.stopPropagation(); setFile(null); setProgress(0); setUploadErr(null); }}
                                 style={{
-                                    background: 'transparent', border: 'none', cursor: 'pointer',
-                                    color: 'rgba(232,230,224,0.3)', padding: 4, flexShrink: 0,
+                                    background: 'rgba(255,255,255,0.04)', border: 'none', cursor: 'pointer',
+                                    color: 'rgba(243,244,246,0.4)', padding: 6, flexShrink: 0,
+                                    borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 }}
                             >
-                                <X size={14} />
+                                <X size={12} />
                             </button>
                         </motion.div>
                     )}
@@ -717,13 +779,13 @@ function UploadTab({ isSubmitting, onUpload, selectedMode, onModeChange }) {
                 {/* Upload progress bar */}
                 {progress > 0 && progress < 100 && (
                     <div style={{
-                        position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
+                        position: 'absolute', bottom: 0, left: 0, right: 0, height: 3,
                         background: 'rgba(255,255,255,0.05)',
                     }}>
                         <motion.div
                             animate={{ width: `${progress}%` }}
                             transition={{ duration: 0.2 }}
-                            style={{ height: '100%', background: '#4A7CF7', borderRadius: 1 }}
+                            style={{ height: '100%', background: '#3B82F6' }}
                         />
                     </div>
                 )}
@@ -735,11 +797,12 @@ function UploadTab({ isSubmitting, onUpload, selectedMode, onModeChange }) {
                     <motion.p
                         initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                         style={{
-                            fontFamily: 'var(--font-mono)', fontSize: 10,
-                            color: '#E8453C', marginTop: 8, letterSpacing: '0.06em',
+                            fontFamily: 'var(--font-mono)', fontSize: 10.5,
+                            color: '#F43F5E', marginTop: 8, letterSpacing: '0.04em',
+                            display: 'flex', alignItems: 'center', gap: '6px',
                         }}
                     >
-                        {uploadErr}
+                        <span>●</span> {uploadErr}
                     </motion.p>
                 )}
             </AnimatePresence>
@@ -747,9 +810,9 @@ function UploadTab({ isSubmitting, onUpload, selectedMode, onModeChange }) {
             {/* Mode + Analyze row */}
             <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                marginTop: 12, gap: 12, flexWrap: 'wrap',
+                marginTop: 14, gap: 12, flexWrap: 'wrap',
             }}>
-                <div style={{ display: 'flex', gap: 4 }}>
+                <div style={{ display: 'flex', gap: 6 }}>
                     {UPLOAD_MODES.map(m => (
                         <button
                             key={m.id}
@@ -758,13 +821,14 @@ function UploadTab({ isSubmitting, onUpload, selectedMode, onModeChange }) {
                             style={{
                                 fontFamily: 'var(--font-mono)', fontSize: 10,
                                 letterSpacing: '0.08em', textTransform: 'uppercase',
-                                padding: '5px 12px', borderRadius: 6,
+                                padding: '6px 12px', borderRadius: 8,
                                 border: selectedMode === m.id
-                                    ? '1px solid rgba(74,124,247,0.4)'
-                                    : '1px solid rgba(255,255,255,0.07)',
-                                background: selectedMode === m.id ? 'rgba(74,124,247,0.1)' : 'transparent',
-                                color: selectedMode === m.id ? '#4A7CF7' : 'rgba(232,230,224,0.35)',
-                                cursor: 'pointer', transition: 'all 150ms',
+                                    ? '1px solid rgba(59, 130, 246, 0.4)'
+                                    : '1px solid rgba(255, 255, 255, 0.05)',
+                                background: selectedMode === m.id ? 'rgba(59, 130, 246, 0.08)' : 'rgba(15,15,22,0.25)',
+                                color: selectedMode === m.id ? '#60A5FA' : 'rgba(243, 244, 246, 0.4)',
+                                cursor: 'pointer', transition: 'all 0.2s ease',
+                                fontWeight: 500,
                             }}
                         >
                             {m.label}
@@ -780,17 +844,31 @@ function UploadTab({ isSubmitting, onUpload, selectedMode, onModeChange }) {
                             disabled={isSubmitting || progress > 0}
                             style={{
                                 display: 'flex', alignItems: 'center', gap: 6,
-                                padding: '0 16px', height: 36, borderRadius: 7,
-                                border: '1px solid rgba(74,124,247,0.6)',
-                                background: 'rgba(74,124,247,0.12)',
-                                color: '#4A7CF7', fontFamily: 'var(--font-mono)',
-                                fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer',
+                                padding: '0 18px', height: 36, borderRadius: 8,
+                                border: '1px solid rgba(59, 130, 246, 0.4)',
+                                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.25) 100%)',
+                                color: '#60A5FA', fontFamily: 'var(--font-mono)',
+                                fontSize: 11, letterSpacing: '0.04em', cursor: 'pointer',
                                 opacity: (isSubmitting || progress > 0) ? 0.5 : 1,
+                                boxShadow: '0 0 12px rgba(59, 130, 246, 0.1)',
+                                transition: 'all 0.2s ease',
+                            }}
+                            onMouseEnter={e => {
+                                if (!isSubmitting && progress === 0) {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(37, 99, 235, 0.35) 100%)';
+                                    e.currentTarget.style.boxShadow = '0 0 15px rgba(59, 130, 246, 0.2)';
+                                }
+                            }}
+                            onMouseLeave={e => {
+                                if (!isSubmitting && progress === 0) {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.25) 100%)';
+                                    e.currentTarget.style.boxShadow = '0 0 12px rgba(59, 130, 246, 0.1)';
+                                }
                             }}
                         >
                             {progress > 0
                                 ? <><Clock size={12} /> {progress}%</>
-                                : <><Zap size={12} /> Analyze</>}
+                                : <><Zap size={12} /> Analyze Media</>}
                         </motion.button>
                     )}
                 </AnimatePresence>
@@ -810,7 +888,7 @@ export default function CommandBar({
     onModeChange,
     onSubmit,
     onReset,
-    onUpload,          // NEW: (job) => void — called after successful upload
+    onUpload,
 }) {
     const [isFocused, setIsFocused] = useState(false);
     const [activeTab, setActiveTab] = useState('url');

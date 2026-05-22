@@ -6,22 +6,39 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
 const RISK_COLOR = {
-    high:   '#EF4444',
-    medium: '#F97316',
-    low:    '#22C55E',
-    pending: '#4A7CF7',
+    high:   '#F43F5E',
+    medium: '#F59E0B',
+    low:    '#10B981',
+    pending: '#3B82F6',
 };
 
 function RiskDot({ level }) {
     const color = RISK_COLOR[level] ?? '#6B7280';
+    const isPending = level === 'pending';
+
     return (
-        <span style={{
-            width: 6, height: 6, borderRadius: '50%',
-            background: color,
-            flexShrink: 0,
-            boxShadow: `0 0 4px ${color}88`,
-            display: 'inline-block',
-        }} />
+        <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            {isPending && (
+                <motion.span
+                    animate={{ scale: [1, 1.8], opacity: [0.6, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
+                    style={{
+                        position: 'absolute',
+                        width: 8, height: 8, borderRadius: '50%',
+                        background: color,
+                    }}
+                />
+            )}
+            <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: color,
+                flexShrink: 0,
+                boxShadow: `0 0 6px ${color}aa`,
+                display: 'inline-block',
+                position: 'relative',
+                zIndex: 2,
+            }} />
+        </span>
     );
 }
 
@@ -45,8 +62,10 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
         <aside style={{
             width: 220,
             height: '100dvh',
-            background: '#0A0A0A',
-            borderRight: '1px solid rgba(255,255,255,0.06)',
+            background: 'rgba(10, 10, 14, 0.45)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            borderRight: '1px solid rgba(255, 255, 255, 0.05)',
             display: 'flex',
             flexDirection: 'column',
             flexShrink: 0,
@@ -54,18 +73,19 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
         }}>
             {/* Header */}
             <div style={{
-                padding: '18px 14px 10px',
+                padding: '20px 16px 12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
                 flexShrink: 0,
             }}>
                 <span style={{
                     fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
-                    fontSize: 9,
+                    fontSize: 10,
+                    fontWeight: 500,
                     letterSpacing: '0.14em',
-                    color: 'rgba(232,230,224,0.3)',
+                    color: 'rgba(243, 244, 246, 0.4)',
                     textTransform: 'uppercase',
                 }}>
                     Operations
@@ -77,12 +97,12 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
                         style={{
                             background: 'none', border: 'none', cursor: 'pointer',
                             fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
-                            fontSize: 9, color: 'rgba(232,230,224,0.2)',
+                            fontSize: 10, color: 'rgba(243, 244, 246, 0.25)',
                             letterSpacing: '0.08em', padding: 0,
                             transition: 'color 0.15s',
                         }}
-                        onMouseEnter={e => e.currentTarget.style.color = 'rgba(239,68,68,0.6)'}
-                        onMouseLeave={e => e.currentTarget.style.color = 'rgba(232,230,224,0.2)'}
+                        onMouseEnter={e => e.currentTarget.style.color = '#F43F5E'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'rgba(243, 244, 246, 0.25)'}
                     >
                         CLEAR
                     </button>
@@ -90,17 +110,17 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
             </div>
 
             {/* List */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0', scrollbarWidth: 'none' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 0', scrollbarWidth: 'none' }}>
                 <AnimatePresence initial={false}>
                     {operations.length === 0 ? (
                         <motion.div
                             key="empty"
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             style={{
-                                padding: '24px 14px',
+                                padding: '24px 16px',
                                 fontFamily: "var(--font-sans, 'Geist', sans-serif)",
-                                fontSize: 12,
-                                color: 'rgba(232,230,224,0.2)',
+                                fontSize: 13,
+                                color: 'rgba(243, 244, 246, 0.3)',
                                 lineHeight: 1.6,
                             }}
                         >
@@ -127,25 +147,25 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
                                             style={{
                                                 display: 'flex',
                                                 flexDirection: 'column',
-                                                gap: 5,
+                                                gap: 6,
                                                 width: '100%',
-                                                padding: '9px 14px',
-                                                background: isActive ? 'rgba(74,124,247,0.08)' : 'transparent',
-                                                borderLeft: isActive ? '2px solid #4A7CF7' : '2px solid transparent',
+                                                padding: '10px 16px',
+                                                background: isActive ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                                                borderLeft: isActive ? '3px solid #3B82F6' : '3px solid transparent',
                                                 cursor: 'pointer',
-                                                transition: 'background 0.15s',
+                                                transition: 'all 0.2s ease',
                                                 boxSizing: 'border-box',
                                             }}
-                                            onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+                                            onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)'; }}
                                             onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
                                         >
                                             {/* Label row */}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                                 <RiskDot level={op.riskLevel} />
                                                 <span style={{
                                                     fontFamily: "var(--font-sans, 'Geist', sans-serif)",
-                                                    fontSize: 12,
-                                                    color: isActive ? '#E8E6E0' : 'rgba(232,230,224,0.65)',
+                                                    fontSize: 12.5,
+                                                    color: isActive ? '#F3F4F6' : 'rgba(243, 244, 246, 0.75)',
                                                     fontWeight: isActive ? 500 : 400,
                                                     overflow: 'hidden',
                                                     textOverflow: 'ellipsis',
@@ -160,22 +180,23 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'space-between',
-                                                paddingLeft: 13,
+                                                paddingLeft: 14,
                                             }}>
                                                 {op.riskScore != null && (
                                                     <span style={{
                                                         fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
                                                         fontSize: 10,
+                                                        fontWeight: 500,
                                                         color: RISK_COLOR[op.riskLevel] ?? '#6B7280',
                                                     }}>
-                                                        {Math.round(op.riskScore * 100)}
+                                                        {Math.round(op.riskScore * 100)}%
                                                     </span>
                                                 )}
                                                 {op.timestamp && (
                                                     <span style={{
                                                         fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
                                                         fontSize: 9,
-                                                        color: 'rgba(232,230,224,0.22)',
+                                                        color: 'rgba(243, 244, 246, 0.25)',
                                                         marginLeft: 'auto',
                                                     }}>
                                                         <RelativeTime ts={op.timestamp} />

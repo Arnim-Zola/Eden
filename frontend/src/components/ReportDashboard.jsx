@@ -6,7 +6,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 import {
     ExternalLink, X, AlertTriangle, ShieldAlert,
     ShieldCheck, HelpCircle, BarChart2, FileText,
-    Film, Eye
+    Film, Eye, Mic
 } from 'lucide-react';
 import DetailDrawer from './DetailDrawer';
 import ExportMenu from './ExportMenu';
@@ -72,10 +72,9 @@ function Cell({ children, style = {}, variants, colSpan, isMobile, isTablet }) {
     return (
         <motion.div
             variants={variants ?? staggerItem}
+            className="glass-card"
             style={{
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: '12px',
+                borderRadius: '16px',
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
@@ -127,11 +126,13 @@ function MediaPreview({ jobData }) {
     const assets = jobData?.media_assets ?? [];
     const videoAsset = assets.find(a => a.asset_type === 'VIDEO');
     const imageAsset = assets.find(a => a.asset_type === 'IMAGE');
+    const audioAsset = assets.find(a => a.asset_type === 'AUDIO');
     const frameAsset = assets.find(a => a.asset_type === 'FRAME_DIRECTORY');
 
-    // Display logic: prefer Video > Image > Frame
-    const mediaUrl = videoAsset?.file_url ?? imageAsset?.file_url ?? frameAsset?.metadata?.frames?.[0]?.thumbnail_url ?? null;
+    // Display logic: prefer Video > Image > Audio > Frame
+    const mediaUrl = videoAsset?.file_url ?? imageAsset?.file_url ?? audioAsset?.file_url ?? frameAsset?.metadata?.frames?.[0]?.thumbnail_url ?? null;
     const isVideo  = !!videoAsset;
+    const isAudio  = !!audioAsset && !videoAsset && !imageAsset;
 
     const platform = isUpload
         ? 'Local Upload'
@@ -180,6 +181,12 @@ function MediaPreview({ jobData }) {
                                 controls
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             />
+                        ) : isAudio ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                                <Mic size={32} style={{ color: 'var(--color-text-primary)' }} />
+                                <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Audio Track Only</span>
+                                <audio src={mediaUrl} controls style={{ width: '200px', height: '32px' }} />
+                            </div>
                         ) : (
                             <img
                                 src={mediaUrl}
@@ -257,8 +264,51 @@ function Tag({ children }) {
     );
 }
 
+function RiskExplanationBox({ explanation, level }) {
+    if (!explanation) return null;
+
+    const colors = {
+        high: { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.06)', border: 'rgba(239, 68, 68, 0.2)' },
+        medium: { color: '#f97316', bg: 'rgba(249, 115, 22, 0.06)', border: 'rgba(249, 115, 22, 0.2)' },
+        low: { color: '#22c55e', bg: 'rgba(34, 197, 94, 0.06)', border: 'rgba(34, 197, 94, 0.2)' },
+        unknown: { color: '#9ca3af', bg: 'rgba(156, 163, 175, 0.06)', border: 'rgba(156, 163, 175, 0.2)' }
+    };
+    
+    const cfg = colors[level] || colors.unknown;
+
+    return (
+        <div
+            style={{
+                marginTop: '14px',
+                padding: '12px 14px',
+                background: cfg.bg,
+                borderRadius: '8px',
+                borderLeft: `3px solid ${cfg.color}`,
+                borderTop: `1px solid ${cfg.border}`,
+                borderRight: `1px solid ${cfg.border}`,
+                borderBottom: `1px solid ${cfg.border}`,
+                width: '100%',
+                boxSizing: 'border-box',
+                textAlign: 'left',
+            }}
+        >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={cfg.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
+                </svg>
+                <span style={{ fontSize: '10px', fontWeight: 600, color: cfg.color, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-mono)' }}>
+                    AI Risk Analysis
+                </span>
+            </div>
+            <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.6', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-sans)' }}>
+                {explanation}
+            </p>
+        </div>
+    );
+}
+
 // ── RiskScore cell ────────────────────────────────────────────────────────────
-function RiskScore({ claims }) {
+function RiskScore({ claims, riskExplanation }) {
     const { score, level } = calcRiskScore(claims);
     const color = RISK_COLOR[level];
 
@@ -287,7 +337,7 @@ function RiskScore({ claims }) {
                     <path
                         d={`M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`}
                         fill="none"
-                        stroke="var(--color-border)"
+                        stroke="rgba(255, 255, 255, 0.04)"
                         strokeWidth={strokeW}
                         strokeLinecap="round"
                     />
@@ -302,6 +352,7 @@ function RiskScore({ claims }) {
                         initial={{ strokeDashoffset: circ }}
                         animate={{ strokeDashoffset: circ - filled }}
                         transition={{ duration: 1.2, ease: [0.4, 0, 0.2, 1], delay: 0.3 }}
+                        style={{ filter: `drop-shadow(0px 0px 5px ${color}cc)` }}
                     />
                     {/* Score number */}
                     <text
@@ -310,7 +361,8 @@ function RiskScore({ claims }) {
                         fill={color}
                         fontFamily="var(--font-mono)"
                         fontSize="22"
-                        fontWeight="500"
+                        fontWeight="600"
+                        style={{ filter: `drop-shadow(0px 0px 8px ${color}44)` }}
                     >
                         {score}
                     </text>
@@ -323,6 +375,7 @@ function RiskScore({ claims }) {
                         fontSize: '10px',
                         letterSpacing: '0.15em',
                         textTransform: 'uppercase',
+                        fontWeight: 600,
                         color,
                     }}
                 >
@@ -339,6 +392,9 @@ function RiskScore({ claims }) {
                 >
                     {claims.length} claim{claims.length !== 1 ? 's' : ''} detected
                 </div>
+
+                {/* AI generated explanation */}
+                <RiskExplanationBox explanation={riskExplanation} level={level} />
             </div>
         </Cell>
     );
@@ -388,20 +444,36 @@ function IntelligenceSummary({ jobData, claims, isMobile, isTablet }) {
                     ).map(([v, count]) => {
                         const cfg = VERDICT[v.replace(/\s+/g, '')] ?? VERDICT.unverifiable;
                         return (
-                            <span
-                                key={v}
-                                style={{
-                                    fontFamily: 'var(--font-mono)',
-                                    fontSize: '11px',
-                                    color: cfg.color,
-                                    background: cfg.bg,
-                                    border: `1px solid ${cfg.border}`,
-                                    borderRadius: '5px',
-                                    padding: '3px 10px',
-                                }}
-                            >
-                                {count} {cfg.label}
-                            </span>
+                            <div key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <span
+                                    style={{
+                                        fontFamily: 'var(--font-mono)',
+                                        fontSize: '11px',
+                                        color: cfg.color,
+                                        background: cfg.bg,
+                                        border: `1px solid ${cfg.border}`,
+                                        borderRadius: '5px',
+                                        padding: '3px 10px',
+                                    }}
+                                >
+                                    {count} {cfg.label}
+                                </span>
+                                {v.includes('unverif') && (
+                                    <span style={{
+                                        fontFamily: 'var(--font-mono)',
+                                        fontSize: '10px',
+                                        fontWeight: 'bold',
+                                        color: '#ff4d4f',
+                                        background: 'rgba(255, 77, 79, 0.1)',
+                                        border: '1px solid rgba(255, 77, 79, 0.3)',
+                                        borderRadius: '4px',
+                                        padding: '2px 6px',
+                                        letterSpacing: '0.5px'
+                                    }}>
+                                        NOT AN ABSOLUTE FACT
+                                    </span>
+                                )}
+                            </div>
                         );
                     })}
                 </div>
@@ -639,8 +711,9 @@ function TranscriptPanel({ transcript, selectedClaim, isMobile, isTablet, style 
 // ── SignalDistribution cell ───────────────────────────────────────────────────
 function SignalDistribution({ claims, isMobile, isTablet, style = {} }) {
     const counts = claims.reduce((acc, c) => {
-        const v = (c.verdict ?? c.classification ?? 'unverifiable')
+        const raw = (c.verdict ?? c.classification ?? c.label ?? 'unverifiable')
             .toLowerCase().replace(/\s+/g, '');
+        const v = VERDICT[raw] ? raw : 'unverifiable';
         acc[v] = (acc[v] ?? 0) + 1;
         return acc;
     }, {});
@@ -692,9 +765,9 @@ function SignalDistribution({ claims, isMobile, isTablet, style = {} }) {
                             </div>
                             <div
                                 style={{
-                                    height: '4px',
-                                    background: 'rgba(255,255,255,0.03)',
-                                    borderRadius: '2px',
+                                    height: '6px',
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    borderRadius: '3px',
                                     overflow: 'hidden',
                                 }}
                             >
@@ -705,8 +778,9 @@ function SignalDistribution({ claims, isMobile, isTablet, style = {} }) {
                                     style={{
                                         height: '100%',
                                         background: cfg.color,
-                                        borderRadius: '2px',
+                                        borderRadius: '3px',
                                         transformOrigin: 'left',
+                                        filter: `drop-shadow(0px 0px 4px ${cfg.color}bb)`,
                                     }}
                                 />
                             </div>
@@ -944,7 +1018,7 @@ export default function ReportDashboard({ onReset }) {
             >
                 {/* Row 1: MediaPreview · RiskScore · IntelligenceSummary (2 cols) */}
                 <MediaPreview jobData={mergedData} />
-                <RiskScore claims={claims} />
+                <RiskScore claims={claims} riskExplanation={mergedData?.risk_explanation} />
                 <IntelligenceSummary jobData={mergedData} claims={claims} isMobile={isMobile} isTablet={isTablet} />
 
                 {/* Row 2: ClaimsStrip (full width) */}

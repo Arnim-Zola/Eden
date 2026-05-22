@@ -236,6 +236,25 @@ class AudioExtractionService:
             
         return audio_path
 
+    def extract_thumbnail(self, video_path: str) -> str:
+        """
+        Extract a single frame from the video as a thumbnail for the report.
+        """
+        thumb_path = os.path.join(self.media_dir, "thumbnail.jpg")
+        # Extract frame at 1 second mark (or 0 if very short)
+        command = [
+            'ffmpeg', '-y', '-i', video_path,
+            '-ss', '00:00:01', '-vframes', '1',
+            '-f', 'image2', thumb_path
+        ]
+        try:
+            subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if os.path.exists(thumb_path):
+                return thumb_path
+        except Exception:
+            pass
+        return None
+
     def transcribe_audio(self, audio_path: str) -> dict:
         """
         Transcribes the audio using Whisper and returns the segments and unified transcript.
