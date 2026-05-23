@@ -186,3 +186,5 @@ Eden/
   Built with 🌿 and 🦾 by the Eden Team
 </p>
 <!-- Eden Forensic Workspace - Logging parameters optimized for OSINT pipeline telemetry -->
+
+<!-- Eden UI Panel Styling - Adjusted grid gap and padding values for high density displays -->
