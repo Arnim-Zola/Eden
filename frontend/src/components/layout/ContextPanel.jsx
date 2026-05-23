@@ -1,216 +1,651 @@
 /**
- * ContextPanel.jsx
- * Sidebar showing persisted operation history. Highlights active route entry.
+ * ContextPanel.jsx — Eden Intelligence Platform
+ * OSINT Mission Log · Cold Intelligence / Forensic Terminal aesthetic
  */
-import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
 
-const RISK_COLOR = {
-    high:   '#F43F5E',
-    medium: '#F59E0B',
-    low:    '#10B981',
-    pending: '#3B82F6',
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Shield,
+  AlertTriangle,
+  Clock,
+  Trash2,
+  Radio,
+  Activity,
+  ChevronRight,
+  Lock,
+  Wifi,
+} from "lucide-react";
+
+/* ─── Helpers ─────────────────────────────────────────────────── */
+
+const RISK_CONFIG = {
+  high: {
+    color: "#ff3b5c",
+    label: "HIGH",
+    glow: "rgba(255,59,92,0.6)",
+    bg: "rgba(255,59,92,0.08)",
+    border: "rgba(255,59,92,0.25)",
+  },
+  medium: {
+    color: "#e8c84a",
+    label: "MED",
+    glow: "rgba(232,200,74,0.5)",
+    bg: "rgba(232,200,74,0.07)",
+    border: "rgba(232,200,74,0.22)",
+  },
+  low: {
+    color: "#4ab8e8",
+    label: "LOW",
+    glow: "rgba(74,184,232,0.5)",
+    bg: "rgba(74,184,232,0.07)",
+    border: "rgba(74,184,232,0.2)",
+  },
+  pending: {
+    color: "#6b7f94",
+    label: "PEND",
+    glow: "rgba(107,127,148,0.3)",
+    bg: "rgba(107,127,148,0.06)",
+    border: "rgba(107,127,148,0.18)",
+  },
 };
 
-function RiskDot({ level }) {
-    const color = RISK_COLOR[level] ?? '#6B7280';
-    const isPending = level === 'pending';
-
-    return (
-        <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-            {isPending && (
-                <motion.span
-                    animate={{ scale: [1, 1.8], opacity: [0.6, 0] }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
-                    style={{
-                        position: 'absolute',
-                        width: 8, height: 8, borderRadius: '50%',
-                        background: color,
-                    }}
-                />
-            )}
-            <span style={{
-                width: 6, height: 6, borderRadius: '50%',
-                background: color,
-                flexShrink: 0,
-                boxShadow: `0 0 6px ${color}aa`,
-                display: 'inline-block',
-                position: 'relative',
-                zIndex: 2,
-            }} />
-        </span>
-    );
+function formatTs(ts) {
+  const d = ts instanceof Date ? ts : new Date(ts);
+  const diff = (Date.now() - d) / 1000;
+  if (diff < 60) return `${Math.floor(diff)}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function RelativeTime({ ts }) {
-    const diff = Date.now() - ts;
-    const mins = Math.floor(diff / 60000);
-    const hrs  = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    const label = days > 0
-        ? `${days}d ago`
-        : hrs > 0
-        ? `${hrs}h ago`
-        : mins > 0
-        ? `${mins}m ago`
-        : 'just now';
-    return <span>{label}</span>;
+function truncateUrl(url, max = 34) {
+  if (!url) return "Local Upload";
+  try {
+    const u = new URL(url);
+    const s = u.hostname + u.pathname;
+    return s.length > max ? s.slice(0, max) + "…" : s;
+  } catch {
+    return url.length > max ? url.slice(0, max) + "…" : url;
+  }
 }
+
+/* ─── Sub-components ──────────────────────────────────────────── */
+
+function ScanlineOverlay() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none",
+        background:
+          "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(74,184,232,0.018) 2px, rgba(74,184,232,0.018) 4px)",
+        zIndex: 0,
+      }}
+    />
+  );
+}
+
+function LiveIndicator() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <motion.div
+        animate={{ opacity: [1, 0.2, 1] }}
+        transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: "#4ab8e8",
+          boxShadow: "0 0 8px #4ab8e8",
+        }}
+      />
+      <span
+        style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 9,
+          letterSpacing: "0.15em",
+          color: "#4ab8e8",
+          opacity: 0.8,
+        }}
+      >
+        LIVE
+      </span>
+    </div>
+  );
+}
+
+function RiskBadge({ riskLevel, riskScore }) {
+  const cfg = RISK_CONFIG[riskLevel] || RISK_CONFIG.pending;
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-end",
+        gap: 3,
+        flexShrink: 0,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 9,
+          letterSpacing: "0.12em",
+          color: cfg.color,
+          textShadow: `0 0 8px ${cfg.glow}`,
+          fontWeight: 700,
+          background: cfg.bg,
+          border: `1px solid ${cfg.border}`,
+          borderRadius: 3,
+          padding: "1px 5px",
+          lineHeight: 1.6,
+        }}
+      >
+        {cfg.label}
+      </div>
+      {riskScore != null && (
+        <div
+          style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 9,
+            color: cfg.color,
+            opacity: 0.75,
+          }}
+        >
+          {Math.round(riskScore * 100)}%
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RiskBar({ riskScore, riskLevel }) {
+  if (riskScore == null) return null;
+  const cfg = RISK_CONFIG[riskLevel] || RISK_CONFIG.pending;
+  return (
+    <div
+      style={{
+        height: 2,
+        width: "100%",
+        background: "rgba(255,255,255,0.04)",
+        borderRadius: 1,
+        overflow: "hidden",
+        marginTop: 6,
+      }}
+    >
+      <motion.div
+        initial={{ width: 0 }}
+        animate={{ width: `${riskScore * 100}%` }}
+        transition={{ duration: 0.9, ease: "easeOut", delay: 0.1 }}
+        style={{
+          height: "100%",
+          background: cfg.color,
+          boxShadow: `0 0 6px ${cfg.glow}`,
+          borderRadius: 1,
+        }}
+      />
+    </div>
+  );
+}
+
+function OperationRow({ op, isActive }) {
+  const cfg = RISK_CONFIG[op.riskLevel] || RISK_CONFIG.pending;
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <Link
+      to={`/operation/${op.id}`}
+      style={{ textDecoration: "none", display: "block" }}
+    >
+      <motion.div
+        onHoverStart={() => setHovered(true)}
+        onHoverEnd={() => setHovered(false)}
+        initial={{ opacity: 0, x: -12 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -8 }}
+        transition={{ duration: 0.28, ease: "easeOut" }}
+        style={{
+          position: "relative",
+          padding: "10px 12px",
+          borderRadius: 6,
+          border: isActive
+            ? `1px solid ${cfg.border}`
+            : `1px solid ${hovered ? "rgba(74,184,232,0.15)" : "rgba(30,42,56,0.7)"}`,
+          background: isActive
+            ? cfg.bg
+            : hovered
+            ? "rgba(74,184,232,0.04)"
+            : "rgba(8,11,15,0.5)",
+          cursor: "pointer",
+          transition: "border 0.2s, background 0.2s",
+          overflow: "hidden",
+        }}
+      >
+        {/* Left accent strip */}
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 2,
+            background: isActive || hovered ? cfg.color : "transparent",
+            boxShadow: isActive || hovered ? `0 0 8px ${cfg.glow}` : "none",
+            borderRadius: "6px 0 0 6px",
+            transition: "background 0.2s",
+          }}
+        />
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: 8,
+          }}
+        >
+          {/* Left: label + url */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 9,
+                letterSpacing: "0.14em",
+                color: "#4ab8e8",
+                opacity: 0.65,
+                marginBottom: 3,
+                textTransform: "uppercase",
+              }}
+            >
+              {op.label || `OP-${String(op.id).slice(0, 6).toUpperCase()}`}
+            </div>
+            <div
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 10.5,
+                color: hovered || isActive ? "#c8d8e8" : "#8fa3b4",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                transition: "color 0.2s",
+              }}
+            >
+              {truncateUrl(op.url)}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                marginTop: 5,
+              }}
+            >
+              <Clock size={9} color="#4a6070" />
+              <span
+                style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 9,
+                  color: "#4a6070",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                {formatTs(op.timestamp)}
+              </span>
+            </div>
+          </div>
+
+          {/* Right: risk badge */}
+          <RiskBadge riskLevel={op.riskLevel} riskScore={op.riskScore} />
+        </div>
+
+        <RiskBar riskScore={op.riskScore} riskLevel={op.riskLevel} />
+
+        {/* Hover chevron */}
+        <motion.div
+          initial={{ opacity: 0, x: -4 }}
+          animate={{ opacity: hovered ? 1 : 0, x: hovered ? 0 : -4 }}
+          style={{
+            position: "absolute",
+            right: 8,
+            bottom: 8,
+          }}
+        >
+          <ChevronRight size={10} color={cfg.color} />
+        </motion.div>
+      </motion.div>
+    </Link>
+  );
+}
+
+function StatCounter({ label, value, color = "#4ab8e8" }) {
+  return (
+    <div style={{ textAlign: "center" }}>
+      <div
+        style={{
+          fontFamily: "'Barlow Condensed', sans-serif",
+          fontSize: 20,
+          fontWeight: 700,
+          color,
+          textShadow: `0 0 12px ${color}88`,
+          lineHeight: 1,
+        }}
+      >
+        {value}
+      </div>
+      <div
+        style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 8,
+          letterSpacing: "0.12em",
+          color: "#3a5060",
+          marginTop: 3,
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main Component ──────────────────────────────────────────── */
 
 export default function ContextPanel({ operations = [], activeId = null, onClear }) {
-    return (
-        <aside style={{
-            width: 220,
-            height: '100dvh',
-            background: 'rgba(10, 10, 14, 0.45)',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            borderRight: '1px solid rgba(255, 255, 255, 0.05)',
-            display: 'flex',
-            flexDirection: 'column',
-            flexShrink: 0,
-            overflow: 'hidden',
-        }}>
-            {/* Header */}
-            <div style={{
-                padding: '20px 16px 12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
-                flexShrink: 0,
-            }}>
-                <span style={{
-                    fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
-                    fontSize: 10,
-                    fontWeight: 500,
-                    letterSpacing: '0.14em',
-                    color: 'rgba(243, 244, 246, 0.4)',
-                    textTransform: 'uppercase',
-                }}>
-                    Operations
-                </span>
-                {operations.length > 0 && (
-                    <button
-                        onClick={onClear}
-                        title="Clear history"
-                        style={{
-                            background: 'none', border: 'none', cursor: 'pointer',
-                            fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
-                            fontSize: 10, color: 'rgba(243, 244, 246, 0.25)',
-                            letterSpacing: '0.08em', padding: 0,
-                            transition: 'color 0.15s',
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.color = '#F43F5E'}
-                        onMouseLeave={e => e.currentTarget.style.color = 'rgba(243, 244, 246, 0.25)'}
-                    >
-                        CLEAR
-                    </button>
-                )}
-            </div>
+  const scrollRef = useRef(null);
 
-            {/* List */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 0', scrollbarWidth: 'none' }}>
-                <AnimatePresence initial={false}>
-                    {operations.length === 0 ? (
-                        <motion.div
-                            key="empty"
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            style={{
-                                padding: '24px 16px',
-                                fontFamily: "var(--font-sans, 'Geist', sans-serif)",
-                                fontSize: 13,
-                                color: 'rgba(243, 244, 246, 0.3)',
-                                lineHeight: 1.6,
-                            }}
-                        >
-                            No operations yet.
-                            <br />Submit a URL to begin.
-                        </motion.div>
-                    ) : (
-                        operations.map((op) => {
-                            const isActive = op.id === activeId;
-                            return (
-                                <motion.div
-                                    key={op.id}
-                                    layout
-                                    initial={{ opacity: 0, x: -8 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: -8 }}
-                                    transition={{ duration: 0.2 }}
-                                >
-                                    <Link
-                                        to={`/operation/${op.id}`}
-                                        style={{ textDecoration: 'none', display: 'block' }}
-                                    >
-                                        <div
-                                            style={{
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                gap: 6,
-                                                width: '100%',
-                                                padding: '10px 16px',
-                                                background: isActive ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
-                                                borderLeft: isActive ? '3px solid #3B82F6' : '3px solid transparent',
-                                                cursor: 'pointer',
-                                                transition: 'all 0.2s ease',
-                                                boxSizing: 'border-box',
-                                            }}
-                                            onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)'; }}
-                                            onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
-                                        >
-                                            {/* Label row */}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                <RiskDot level={op.riskLevel} />
-                                                <span style={{
-                                                    fontFamily: "var(--font-sans, 'Geist', sans-serif)",
-                                                    fontSize: 12.5,
-                                                    color: isActive ? '#F3F4F6' : 'rgba(243, 244, 246, 0.75)',
-                                                    fontWeight: isActive ? 500 : 400,
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    whiteSpace: 'nowrap',
-                                                    flex: 1,
-                                                }}>
-                                                    {op.label ?? op.url?.replace(/^https?:\/\//, '').slice(0, 35) ?? op.id}
-                                                </span>
-                                            </div>
-                                            {/* Meta row */}
-                                            <div style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                                paddingLeft: 14,
-                                            }}>
-                                                {op.riskScore != null && (
-                                                    <span style={{
-                                                        fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
-                                                        fontSize: 10,
-                                                        fontWeight: 500,
-                                                        color: RISK_COLOR[op.riskLevel] ?? '#6B7280',
-                                                    }}>
-                                                        {Math.round(op.riskScore * 100)}%
-                                                    </span>
-                                                )}
-                                                {op.timestamp && (
-                                                    <span style={{
-                                                        fontFamily: "var(--font-mono, 'Geist Mono', monospace)",
-                                                        fontSize: 9,
-                                                        color: 'rgba(243, 244, 246, 0.25)',
-                                                        marginLeft: 'auto',
-                                                    }}>
-                                                        <RelativeTime ts={op.timestamp} />
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </Link>
-                                </motion.div>
-                            );
-                        })
-                    )}
-                </AnimatePresence>
+  const stats = {
+    total: operations.length,
+    high: operations.filter((o) => o.riskLevel === "high").length,
+    cleared: operations.filter((o) => o.riskLevel === "low").length,
+  };
+
+  // Auto-scroll to top when a new operation is added
+  useEffect(() => {
+    if (scrollRef.current && operations.length > 0) {
+      scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [operations.length]);
+
+  return (
+    <div
+      style={{
+        width: 240,
+        minWidth: 240,
+        height: "100vh",
+        background: "linear-gradient(180deg, #080b0f 0%, #0a0e14 100%)",
+        borderRight: "1px solid #1e2a38",
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+        overflow: "hidden",
+        fontFamily: "'IBM Plex Mono', monospace",
+      }}
+    >
+      <ScanlineOverlay />
+
+      {/* ── Header ── */}
+      <div
+        style={{
+          padding: "18px 16px 14px",
+          borderBottom: "1px solid #1e2a38",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        {/* Top bar: logo mark + live indicator */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 14,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <motion.div
+              animate={{ opacity: [0.7, 1, 0.7] }}
+              transition={{ duration: 2.5, repeat: Infinity }}
+              style={{
+                width: 28,
+                height: 28,
+                border: "1px solid rgba(74,184,232,0.4)",
+                borderRadius: 5,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(74,184,232,0.06)",
+                boxShadow: "0 0 14px rgba(74,184,232,0.15) inset",
+              }}
+            >
+              <Shield size={14} color="#4ab8e8" />
+            </motion.div>
+            <div>
+              <div
+                style={{
+                  fontFamily: "'Barlow Condensed', sans-serif",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: "#c8d8e8",
+                  letterSpacing: "0.1em",
+                  lineHeight: 1,
+                }}
+              >
+                EDEN
+              </div>
+              <div
+                style={{
+                  fontSize: 8,
+                  letterSpacing: "0.1em",
+                  color: "#3a5060",
+                  marginTop: 1,
+                }}
+              >
+                OSINT OPS
+              </div>
             </div>
-        </aside>
-    );
+          </div>
+          <LiveIndicator />
+        </div>
+
+        {/* Stats row */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1px 1fr 1px 1fr",
+            alignItems: "center",
+            background: "rgba(74,184,232,0.03)",
+            border: "1px solid rgba(30,42,56,0.8)",
+            borderRadius: 6,
+            padding: "10px 0",
+          }}
+        >
+          <StatCounter label="TOTAL" value={stats.total} color="#4ab8e8" />
+          <div style={{ width: 1, height: 28, background: "#1e2a38" }} />
+          <StatCounter label="HIGH" value={stats.high} color="#ff3b5c" />
+          <div style={{ width: 1, height: 28, background: "#1e2a38" }} />
+          <StatCounter label="CLEAR" value={stats.cleared} color="#3cb878" />
+        </div>
+      </div>
+
+      {/* ── Section label ── */}
+      <div
+        style={{
+          padding: "10px 16px 8px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <Activity size={10} color="#3a5060" />
+          <span
+            style={{
+              fontSize: 9,
+              letterSpacing: "0.16em",
+              color: "#3a5060",
+              textTransform: "uppercase",
+            }}
+          >
+            MISSION LOG
+          </span>
+        </div>
+        <AnimatePresence>
+          {operations.length > 0 && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.85 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onClear}
+              style={{
+                background: "rgba(255,59,92,0.08)",
+                border: "1px solid rgba(255,59,92,0.2)",
+                borderRadius: 4,
+                padding: "3px 7px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                color: "#ff3b5c",
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 8,
+                letterSpacing: "0.12em",
+              }}
+            >
+              <Trash2 size={8} />
+              PURGE
+            </motion.button>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Operations List ── */}
+      <div
+        ref={scrollRef}
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          overflowX: "hidden",
+          padding: "0 10px 16px",
+          position: "relative",
+          zIndex: 1,
+          scrollbarWidth: "thin",
+          scrollbarColor: "#1e2a38 transparent",
+        }}
+      >
+        <AnimatePresence mode="popLayout">
+          {operations.length === 0 ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                paddingTop: 48,
+                gap: 12,
+              }}
+            >
+              <motion.div
+                animate={{ opacity: [0.3, 0.6, 0.3] }}
+                transition={{ duration: 3, repeat: Infinity }}
+              >
+                <Radio size={24} color="#1e2a38" />
+              </motion.div>
+              <div style={{ textAlign: "center" }}>
+                <div
+                  style={{
+                    fontSize: 9,
+                    letterSpacing: "0.14em",
+                    color: "#2a3a48",
+                    marginBottom: 4,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  AWAITING OPERATIONS
+                </div>
+                <div
+                  style={{
+                    fontSize: 8,
+                    color: "#1e2a38",
+                    lineHeight: 1.6,
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  Submit a URL to begin
+                  <br />
+                  intelligence analysis
+                </div>
+              </div>
+              {/* Dashed placeholder lines */}
+              {[...Array(4)].map((_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: "85%",
+                    height: 36,
+                    border: "1px dashed #1a2530",
+                    borderRadius: 5,
+                    opacity: 1 - i * 0.18,
+                  }}
+                />
+              ))}
+            </motion.div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {operations.map((op) => (
+                <OperationRow
+                  key={op.id}
+                  op={op}
+                  isActive={String(op.id) === String(activeId)}
+                />
+              ))}
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Footer ── */}
+      <div
+        style={{
+          padding: "10px 16px",
+          borderTop: "1px solid #1e2a38",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <Lock size={9} color="#2a3a48" />
+          <span
+            style={{
+              fontSize: 8,
+              letterSpacing: "0.12em",
+              color: "#2a3a48",
+            }}
+          >
+            SECURE CHANNEL
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <Wifi size={9} color="#2a3a48" />
+          <span style={{ fontSize: 8, color: "#2a3a48", letterSpacing: "0.1em" }}>
+            E2E
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 }

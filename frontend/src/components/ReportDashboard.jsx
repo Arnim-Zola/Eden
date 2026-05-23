@@ -177,13 +177,29 @@ function ClassificationBreakdown({ claims }) {
           return <div key={key} style={{ width: `${pct}%`, background: meta.color, boxShadow: `0 0 4px ${meta.color}55`, transition: "width 0.8s ease" }} />;
         })}
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
         {Object.entries(CLASSIFICATION_META).map(([key, meta]) =>
           counts[key] ? (
-            <div key={key} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <div key={key} style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
               <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: meta.color }} />
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: meta.color, letterSpacing: "1px" }}>{meta.label}</span>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-dim)" }}>{counts[key]}</span>
+              {key === 'UNVERIFIED' && (
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '9px',
+                  fontWeight: 'bold',
+                  color: '#ff4d4f',
+                  background: 'rgba(255, 77, 79, 0.1)',
+                  border: '1px solid rgba(255, 77, 79, 0.3)',
+                  borderRadius: '3px',
+                  padding: '1px 5px',
+                  marginLeft: '4px',
+                  letterSpacing: '0.5px'
+                }}>
+                  NOT AN ACTUAL FACT
+                </span>
+              )}
             </div>
           ) : null
         )}
@@ -195,10 +211,31 @@ function ClassificationBreakdown({ claims }) {
 function LeftSpine({ report, score, threat, selectedId, onSelectId, claims }) {
   const [, setTick] = useState(0);
   useEffect(() => { const i = setInterval(() => setTick((t) => t + 1), 1000); return () => clearInterval(i); }, []);
+
+  const hasUnverified = claims.some(c => (c.classification_label || '').toUpperCase() === 'UNVERIFIED');
+
   return (
     <div style={{ width: "300px", minWidth: "300px", height: "100vh", overflowY: "auto",
       background: "var(--bg2)", borderRight: "1px solid var(--border)",
       display: "flex", flexDirection: "column", fontFamily: "var(--font-mono)" }}>
+      
+      {hasUnverified && (
+        <div style={{
+          padding: "10px 20px",
+          background: "rgba(255, 77, 79, 0.08)",
+          borderBottom: "1px solid rgba(255, 77, 79, 0.2)",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          flexShrink: 0
+        }}>
+          <AlertTriangle size={12} style={{ color: "#ff4d4f" }} />
+          <span style={{ fontSize: "9px", fontWeight: "bold", color: "#ff4d4f", letterSpacing: "1px" }}>
+            NOT AN ACTUAL FACT
+          </span>
+        </div>
+      )}
+
       <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
           <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#3ddc84",
@@ -272,13 +309,28 @@ function LeftSpine({ report, score, threat, selectedId, onSelectId, claims }) {
   );
 }
 
-function IntelligenceSummary({ summary }) {
+function IntelligenceSummary({ summary, hasUnverified }) {
   return (
-    <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: "4px", padding: "24px 28px", flex: 1 }}>
+    <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: "4px", padding: "24px 28px", flex: 1, display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
         <div style={{ fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: 600,
           letterSpacing: "4px", color: "var(--text-dim)", textTransform: "uppercase" }}>Intelligence Summary</div>
         <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+        {hasUnverified && (
+          <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '9px',
+            fontWeight: 'bold',
+            color: '#ff4d4f',
+            background: 'rgba(255, 77, 79, 0.1)',
+            border: '1px solid rgba(255, 77, 79, 0.3)',
+            borderRadius: '3px',
+            padding: '2px 8px',
+            letterSpacing: '1px'
+          }}>
+            NOT AN ACTUAL FACT
+          </span>
+        )}
       </div>
       <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", lineHeight: "2", color: "var(--text)", letterSpacing: "0.2px", margin: 0 }}>
         {summary}
@@ -442,15 +494,15 @@ function ForensicTimeline({ claims, selectedId, onSelectId }) {
 }
 
 // ── ForensicMediaPreview ──────────────────────────────────────────────────────
-function ForensicMediaPreview({ jobData }) {
+function ForensicMediaPreview({ jobData, isTablet }) {
     const assets = jobData?.media_assets ?? [];
     const instagramUrl = jobData?.instagram_url;
     const isUpload = jobData?.ingestion_source === 'upload';
     const originalFile = jobData?.original_filename;
 
-    const videoAsset = assets.find(a => a.asset_type === 'VIDEO_SOURCE');
-    const imageAsset = assets.find(a => a.asset_type === 'IMAGE_SOURCE');
-    const audioAsset = assets.find(a => a.asset_type === 'AUDIO_SOURCE');
+    const videoAsset = assets.find(a => a.asset_type === 'VIDEO' || a.asset_type === 'VIDEO_SOURCE');
+    const imageAsset = assets.find(a => a.asset_type === 'IMAGE' || a.asset_type === 'IMAGE_SOURCE' || a.asset_type === 'THUMBNAIL');
+    const audioAsset = assets.find(a => a.asset_type === 'AUDIO' || a.asset_type === 'AUDIO_SOURCE');
     const frameAsset = assets.find(a => a.asset_type === 'FRAME_DIRECTORY');
 
     const mediaUrl = videoAsset?.file_url ?? imageAsset?.file_url ?? audioAsset?.file_url ?? frameAsset?.metadata?.frames?.[0]?.thumbnail_url ?? null;
@@ -479,7 +531,17 @@ function ForensicMediaPreview({ jobData }) {
     };
 
     return (
-        <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: "4px", padding: "24px 28px", display: "flex", flexDirection: "column", gap: "12px", width: "420px", minWidth: "420px" }}>
+        <div style={{ 
+            background: "var(--bg2)", 
+            border: "1px solid var(--border)", 
+            borderRadius: "4px", 
+            padding: "24px 28px", 
+            display: "flex", 
+            flexDirection: "column", 
+            gap: "12px", 
+            width: isTablet ? "100%" : "360px", 
+            minWidth: isTablet ? "100%" : "360px" 
+        }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 <div style={{ fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: 600,
                   letterSpacing: "4px", color: "var(--text-dim)", textTransform: "uppercase" }}>Forensic Source</div>
@@ -836,6 +898,7 @@ export default function ReportDashboard({ onReset }) {
     const threat = getThreat(score);
 
     const selectedClaim = selectedId !== null ? (claims[selectedId] ?? null) : null;
+    const hasUnverified = claims.some(c => (c.classification_label || '').toUpperCase() === 'UNVERIFIED');
 
     return (
         <>
@@ -846,7 +909,7 @@ export default function ReportDashboard({ onReset }) {
                 @keyframes slideIn { from{transform:translateX(40px);opacity:0} to{transform:translateX(0);opacity:1} }
             `}</style>
 
-            <div style={{ display: "flex", height: "100vh", background: "var(--bg)", overflow: "hidden" }}>
+            <div className="no-print" style={{ display: "flex", height: "100vh", background: "var(--bg)", overflow: "hidden" }}>
                 {/* Left Spine */}
                 <LeftSpine 
                     report={mergedData} 
@@ -858,7 +921,7 @@ export default function ReportDashboard({ onReset }) {
                 />
 
                 {/* Right scrollable analysis container */}
-                <div style={{ flex: 1, overflowY: "auto", padding: "32px 32px 64px" }} className="no-print">
+                <div style={{ flex: 1, overflowY: "auto", padding: "32px 32px 64px" }}>
                     
                     {/* Header */}
                     <div style={{ marginBottom: "28px", paddingBottom: "20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
@@ -887,9 +950,9 @@ export default function ReportDashboard({ onReset }) {
                     </div>
 
                     {/* Media source + Summary */}
-                    <div style={{ display: "flex", gap: "20px", marginBottom: "20px", alignItems: "stretch" }}>
-                        <ForensicMediaPreview jobData={mergedData} />
-                        <IntelligenceSummary summary={mergedData.summary || "No summary available."} />
+                    <div style={{ display: "flex", gap: "20px", marginBottom: "20px", flexDirection: isTablet ? "column" : "row", alignItems: "stretch" }}>
+                        <ForensicMediaPreview jobData={mergedData} isTablet={isTablet} />
+                        <IntelligenceSummary summary={mergedData.summary || "No summary available."} hasUnverified={hasUnverified} />
                     </div>
 
                     {/* Timeline */}
@@ -898,7 +961,7 @@ export default function ReportDashboard({ onReset }) {
                     </div>
 
                     {/* Transcript & OCR */}
-                    <div style={{ display: "flex", gap: "20px", marginBottom: "20px", alignItems: "stretch" }}>
+                    <div style={{ display: "flex", gap: "20px", marginBottom: "20px", flexDirection: isTablet ? "column" : "row", alignItems: "stretch" }}>
                         <ForensicTranscriptPanel 
                             transcript={transcript} 
                             selectedClaim={selectedClaim} 
@@ -929,6 +992,7 @@ export default function ReportDashboard({ onReset }) {
                 claims={claims} 
                 transcript={transcript} 
                 ocrData={ocrResults || ocrText} 
+                score={score}
             />
         </>
     );

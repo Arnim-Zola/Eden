@@ -272,11 +272,40 @@ const S = {
     }
 };
 
-export default function PrintReport({ jobData, claims, transcript, ocrData }) {
-    const riskScore = jobData?.risk_score ?? jobData?.riskScore ?? 0.0;
-    const riskPercent = Math.round(riskScore * 100);
-    const riskLevel = riskScore >= 0.66 ? 'HIGH' : riskScore >= 0.33 ? 'MEDIUM' : 'LOW';
-    const riskColor = riskLevel === 'HIGH' ? '#ef4444' : riskLevel === 'MEDIUM' ? '#f97316' : '#22c55e';
+const CLASSIFICATION_META_WEIGHTS = {
+    VERIFIED_LIKELY_TRUE: 0.0,
+    TRUE:                 0.0,
+    PLAUSIBLE:            0.15,
+    UNVERIFIED:           0.4,
+    OPINION_OR_SATIRE:    0.2,
+    MISLEADING_CONTEXT:   0.85,
+    MISLEADING:           0.85,
+    LIKELY_FALSE:         1.0,
+    FALSE:                1.0,
+    HIGH_RISK:            1.0,
+};
+
+function calculateClaimsScore(claimsList = []) {
+    if (!claimsList || !claimsList.length) return 0.0;
+    const sum = claimsList.reduce((acc, c) => {
+        const label = c.classification_label ?? c.verdict ?? 'UNVERIFIED';
+        const norm = label.toUpperCase().replace(/\s+/g, '_');
+        const weight = CLASSIFICATION_META_WEIGHTS[norm] ?? 0.4;
+        return acc + weight;
+    }, 0);
+    return sum / claimsList.length;
+}
+
+export default function PrintReport({ jobData, claims, transcript, ocrData, score }) {
+    // Sync printed dossier with the nested backend score, or the dynamic client-side claims calculation
+    const backendScore = jobData?.report?.report_data?.overall_risk_score;
+    const computedScore = calculateClaimsScore(claims);
+    const riskScore = backendScore ?? jobData?.risk_score ?? jobData?.riskScore ?? computedScore;
+    
+    // Use the score prop passed from the dashboard to guarantee perfect synchronization, fallback to computed score otherwise
+    const riskPercent = score !== undefined ? score : Math.round(riskScore * 100);
+    const riskLevel = riskPercent >= 80 ? 'CRITICAL' : riskPercent >= 65 ? 'HIGH' : riskPercent >= 35 ? 'ELEVATED' : 'LOW';
+    const riskColor = riskLevel === 'CRITICAL' ? '#ff2020' : riskLevel === 'HIGH' ? '#ff5533' : riskLevel === 'ELEVATED' ? '#e8c84a' : '#3ddc84';
     
     const summary = jobData?.summary ?? jobData?.report?.report_data?.summary ?? "No summary available.";
     const date = new Date().toLocaleString();

@@ -111,7 +111,7 @@ const phaseToStageIndex = (phase) => {
   if (p.includes("decod") || p.includes("parse") || p.includes("extract_media")) return 1;
   if (p.includes("transcrib") || p.includes("speech") || p.includes("audio")) return 2;
   if (p.includes("ocr") || p.includes("visual") || p.includes("extract_text")) return 3;
-  if (p.includes("analyz") || p.includes("correlat") || p.includes("report") || p.includes("complet")) return 4;
+  if (p.includes("analyz") || p.includes("correlat") || p.includes("report")) return 4;
   return 0;
 };
 
@@ -390,7 +390,7 @@ function Connector({ done }) {
         flex: 1,
         height: 1,
         position: "relative",
-        marginTop: 25, // Patched: aligned properly with the center of the 52px node
+        marginTop: -22, // align with node center
         overflow: "hidden",
       }}
     >
@@ -561,7 +561,7 @@ export default function PipelineStepper({ processingPhase, jobId }) {
                 marginTop: 3,
               }}
             >
-              JOB · {jobId ? String(jobId).toUpperCase().slice(0, 20) : "—"}
+              JOB · {jobId ? jobId.toUpperCase().slice(0, 20) : "—"}
             </div>
           </div>
         </div>
@@ -658,7 +658,7 @@ export default function PipelineStepper({ processingPhase, jobId }) {
             const status =
               i < activeStageIndex ? "done" : i === activeStageIndex ? "active" : "pending";
             return (
-              <div key={stage.key} style={{ display: "flex", alignItems: "flex-start", flex: i === STAGES.length - 1 ? "none" : 1 }}>
+              <div key={stage.key} style={{ display: "flex", alignItems: "flex-start" }}>
                 <StageNode
                   stage={stage}
                   index={i}
