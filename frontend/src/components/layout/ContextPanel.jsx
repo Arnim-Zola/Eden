@@ -60,7 +60,7 @@ function formatTs(ts) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function truncateUrl(url, max = 34) {
+function truncateUrl(url, max = 24) {
   if (!url) return "Local Upload";
   try {
     const u = new URL(url);
@@ -272,6 +272,7 @@ function OperationRow({ op, isActive }) {
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 transition: "color 0.2s",
+                maxWidth: "100%",
               }}
             >
               {truncateUrl(op.url)}
