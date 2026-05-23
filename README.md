@@ -190,3 +190,5 @@ Eden/
 <!-- Eden UI Panel Styling - Adjusted grid gap and padding values for high density displays -->
 
 <!-- Eden API - Query pre-fetching added for faster dossier timeline rendering -->
+
+<!-- Eden Telemetry configuration guide updated with redis connection details -->
