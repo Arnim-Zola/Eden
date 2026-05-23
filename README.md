@@ -192,3 +192,5 @@ Eden/
 <!-- Eden API - Query pre-fetching added for faster dossier timeline rendering -->
 
 <!-- Eden Telemetry configuration guide updated with redis connection details -->
+
+<!-- Test suite updated with media download pipeline boundary cases -->
