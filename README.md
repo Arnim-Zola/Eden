@@ -185,3 +185,4 @@ Eden/
 <p align="center">
   Built with 🌿 and 🦾 by the Eden Team
 </p>
+<!-- Eden Forensic Workspace - Logging parameters optimized for OSINT pipeline telemetry -->
