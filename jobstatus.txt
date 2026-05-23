@@ -21,7 +21,7 @@ import {
   Zap,
 } from "lucide-react";
 import PipelineStepper from "./PipelineStepper";
-import { getJobStatus } from "../services/api"; // Patched: adjusted import path
+import { getJobStatus } from "../api"; // adjust import path as needed
 
 /* ─── Font injection (idempotent) ─────────────────────────────── */
 (function injectFonts() {
@@ -614,11 +614,11 @@ function ErrorView({ errorMessage, onStartOver }) {
 
 /* ─── Main Component ──────────────────────────────────────────── */
 
-export default function JobStatus({ jobId, onComplete, onReset }) {
+export default function JobStatus({ jobId, onStartOver }) {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Polling logic — Patched: Restored onComplete invocation on status transition to COMPLETED
+  // Polling logic — preserved exactly
   useEffect(() => {
     if (!jobId) return;
     let cancelled = false;
@@ -629,19 +629,11 @@ export default function JobStatus({ jobId, onComplete, onReset }) {
         if (!cancelled) {
           setStatus(result);
           setLoading(false);
-
-          if (result.status === "COMPLETED") {
-            clearInterval(interval);
-            onComplete?.(result.id, result);
-          } else if (result.status === "FAILED") {
-            clearInterval(interval);
-          }
         }
       } catch (err) {
         if (!cancelled) {
           setStatus({ status: "FAILED", error_message: err.message || "UNKNOWN" });
           setLoading(false);
-          clearInterval(interval);
         }
       }
     };
@@ -652,21 +644,101 @@ export default function JobStatus({ jobId, onComplete, onReset }) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [jobId, onComplete]);
+  }, [jobId]);
 
   return (
     <div
       style={{
-        width: "100%",
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #080b0f 0%, #0a0e16 60%, #080b0f 100%)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        padding: "24px 0 16px",
+        justifyContent: "center",
+        padding: "48px 24px",
+        position: "relative",
+        overflow: "hidden",
         fontFamily: "'IBM Plex Mono', monospace",
       }}
     >
+      {/* Ambient background layers */}
+      <GridBg />
+      <ScanlineOverlay opacity={0.018} />
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: "20%",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: 600,
+          height: 400,
+          background:
+            "radial-gradient(ellipse, rgba(74,184,232,0.04) 0%, transparent 65%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* Page header */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        style={{
+          marginBottom: 28,
+          textAlign: "center",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 8.5,
+            letterSpacing: "0.22em",
+            color: "#1e3040",
+            border: "1px solid #1a2530",
+            borderRadius: 4,
+            padding: "5px 14px",
+            marginBottom: 14,
+            background: "rgba(8,11,15,0.6)",
+          }}
+        >
+          <Lock size={8} color="#1e3040" />
+          CLASSIFICATION · RESTRICTED · ACTIVE OPERATION
+          <Lock size={8} color="#1e3040" />
+        </div>
+        <div
+          style={{
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontSize: "clamp(28px,5vw,40px)",
+            fontWeight: 800,
+            letterSpacing: "0.2em",
+            color: "#c8dde8",
+            textShadow: "0 0 30px rgba(74,184,232,0.15)",
+            lineHeight: 1,
+            marginBottom: 8,
+          }}
+        >
+          EDEN
+        </div>
+        <div
+          style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 10,
+            letterSpacing: "0.22em",
+            color: "#2a4050",
+          }}
+        >
+          MULTIMODAL INTELLIGENCE ANALYSIS
+        </div>
+      </motion.div>
+
       {/* Main content area */}
-      <div style={{ width: "100%", maxWidth: 860 }}>
+      <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 860 }}>
         <AnimatePresence mode="wait">
           {loading ? (
             <motion.div
@@ -695,7 +767,7 @@ export default function JobStatus({ jobId, onComplete, onReset }) {
             >
               <ErrorView
                 errorMessage={status.error_message}
-                onStartOver={onReset}
+                onStartOver={onStartOver}
               />
             </motion.div>
           ) : (
@@ -715,16 +787,18 @@ export default function JobStatus({ jobId, onComplete, onReset }) {
         </AnimatePresence>
       </div>
 
-      {/* Bottom status indicators */}
+      {/* Bottom status footer */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
         style={{
-          marginTop: 20,
+          marginTop: 28,
           display: "flex",
           alignItems: "center",
           gap: 20,
+          position: "relative",
+          zIndex: 1,
         }}
       >
         {[

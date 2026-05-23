@@ -13,13 +13,15 @@ import './index.css';
 function HomePage({ addOperation }) {
   const navigate = useNavigate();
   const [url, setUrl] = useState('');
-  const [selectedMode, setSelectedMode] = useState(null);
+  const [selectedMode, setSelectedMode] = useState('text');
   const [activeJobId, setActiveJobId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
     if (!url || !selectedMode) return;
 
     setErrorMsg(null);
@@ -78,7 +80,13 @@ function HomePage({ addOperation }) {
   }, []);
 
   return (
-    <>
+    <div style={{
+      minHeight: '100%',
+      background: 'linear-gradient(180deg, #080b0f 0%, #060608 100%)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'stretch',
+    }}>
       <CommandBar
         isSubmitted={!!activeJobId}
         isProcessing={!!activeJobId}
@@ -111,11 +119,23 @@ function HomePage({ addOperation }) {
       )}
 
       {activeJobId && (
-        <div style={{ width: '100%', maxWidth: '640px', margin: '32px auto 0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{
+          width: '100%',
+          maxWidth: '900px',
+          margin: '0 auto',
+          padding: '0 32px 60px',
+          boxSizing: 'border-box',
+        }}>
+          {/* Seamless divider between CommandBar and pipeline panel */}
+          <div style={{
+            height: '1px',
+            background: 'linear-gradient(90deg, transparent, rgba(74,184,232,0.15), transparent)',
+            marginBottom: '32px',
+          }} />
           <JobStatus jobId={activeJobId} onComplete={handleJobComplete} onReset={handleReset} />
         </div>
       )}
-    </>
+    </div>
   );
 }
 
