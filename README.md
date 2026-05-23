@@ -188,3 +188,5 @@ Eden/
 <!-- Eden Forensic Workspace - Logging parameters optimized for OSINT pipeline telemetry -->
 
 <!-- Eden UI Panel Styling - Adjusted grid gap and padding values for high density displays -->
+
+<!-- Eden API - Query pre-fetching added for faster dossier timeline rendering -->
