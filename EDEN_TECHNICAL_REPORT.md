@@ -98,3 +98,53 @@ Audio processing, located in [services.py](file:///c:/Holidays/Eden/backend/proc
 
 ---
 
+## 4. AI Orchestrator & Fallback Cascades
+
+The AI analysis logic, defined in [services.py](file:///c:/Holidays/Eden/backend/analysis/services.py), orchestrates structured JSON generation and implements a robust provider fallback sequence.
+
+```mermaid
+graph TD
+    A[Orchestrator Request] --> B{Gemini 2.5 Flash}
+    B -->|Success| R[Output JSON]
+    B -->|Rate Limit / Quota 429/503| C{Try Gemini Fallbacks}
+    C -->|Success| R
+    C -->|Failure| D{HuggingFace Llama 3 8B}
+    D -->|Success| R
+    D -->|Failure / Timeout| E{HuggingFace Mistral 7B}
+    E -->|Success| R
+    E -->|Failure| F[Local Heuristic Engine]
+    F -->|Local Linguistic Scan| R
+```
+
+### 1. Primary Layer: Google Gemini
+Uses `google-genai` to run `gemini-2.5-flash`. The model is configured with strict structural specifications using Pydantic:
+*   **Response Schema**: Enforces structured JSON compliance via `response_schema=ReportModel` and `response_mime_type="application/json"`.
+*   **Gemini Retry Cascade**: If the primary endpoint fails due to quota limits or service interruptions, the provider retries the request across alternate Gemini models in sequence:
+    1.  `gemini-2.5-flash-lite`
+    2.  `gemini-1.5-flash`
+    3.  `gemini-1.5-pro`
+
+### 2. Secondary Layer: HuggingFace API (Llama & Mistral)
+If all Gemini attempts fail, the orchestrator routes the request to HuggingFace hosted Inference API endpoints:
+*   **Llama 3**: Evaluates prompt instructions using `meta-llama/Meta-Llama-3-8B-Instruct`.
+*   **Mistral 7B**: Serves as a backup via `mistralai/Mistral-7B-Instruct-v0.3`.
+*   **Parsing Strategy**: Since HuggingFace endpoints do not guarantee structured JSON formatting, the client formats instructions manually, strips markdown code blocks (e.g., ` ```json `), and validates the parsed dictionary.
+
+### 3. Tertiary Layer: Local Offline Forensic Heuristic Engine
+If the network is unavailable or cloud APIs fail, the orchestrator falls back to the native `DegradedProvider`:
+*   Tokenizes and parses combined visual OCR and speech text logs locally using regex.
+*   Calculates a local risk index by checking for sensationalist, clickbait, or speculative terminology (e.g., *conspiracy*, *nightmare*, *secret*, *miracle*, *hidden*).
+*   Compiles a mock `ReportModel` containing extracted sentences as claims, mapping the source text to OCR and transcript logs.
+
+---
+
+## 5. Web Verification & Provenance Linkage
+
+To verify claims, the orchestrator generates an optimized search query for each extracted claim. The [tasks.py](file:///c:/Holidays/Eden/backend/analysis/tasks.py) file runs a real-time web search to find references:
+
+1.  **DuckDuckGo HTML Parser**:
+    *   Queries `https://html.duckduckgo.com/html/?q={query}`.
+    *   Parses search results with `BeautifulSoup`.
+    *   Resolves and decodes DDG redirect parameters (`uddg`).
+    *   Extracts titles, URLs, and text snippets for the top 3-4 results.
+2.  **Yahoo Search Fallback**:
