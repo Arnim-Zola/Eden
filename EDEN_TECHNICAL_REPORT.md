@@ -148,3 +148,53 @@ To verify claims, the orchestrator generates an optimized search query for each 
     *   Resolves and decodes DDG redirect parameters (`uddg`).
     *   Extracts titles, URLs, and text snippets for the top 3-4 results.
 2.  **Yahoo Search Fallback**:
+    *   If DuckDuckGo blocks the request with a captcha, the system falls back to `https://search.yahoo.com/search?p={query}`.
+    *   Extracts URLs, cleans up Yahoo redirect structures (`RU=`), and appends results with a static provenance note.
+
+This link-checking pipeline binds verified external sources directly to each claim, enabling users to audit statements against the web.
+
+---
+
+## 6. Core Database Schema & Data Models
+
+Eden's database models, defined in [models.py](file:///c:/Holidays/Eden/backend/core_app/models.py), track processing metadata, claims, and analysis logs.
+
+```
+                  +-----------------------------------+
+                  |            AnalysisJob            |
+                  |-----------------------------------|
+                  | id (PK)                           |
+                  | instagram_url (null/blank)        |
+                  | ingestion_source (URL/UPLOAD)     |
+                  | analysis_type (TEXT/AUDIO/FULL)   |
+                  | status (Enum State Machine)       |
+                  | processing_phase (Text updates)   |
+                  | error_message (Text)              |
+                  +-----------------+-----------------+
+                                    | 1
+                                    |
+                                    | 1
+                  +-----------------v-----------------+
+                  |          AnalysisReport           |
+                  |-----------------------------------|
+                  | id (PK)                           |
+                  | report_data (JSON Field)          |
+                  +-----------------------------------+
+                                    | 1
+                                    |
+                                    | *
+                  +-----------------v-----------------+
+                  |            MediaAsset             |
+                  |-----------------------------------|
+                  | id (PK)                           |
+                  | asset_type (Enum)                 |
+                  | file_path (Text)                  |
+                  | file_size (BigInt)                |
+                  | metadata (JSON Field)             |
+                  +-----------------------------------+
+                                    | 1
+                                    |
+                                    | *
+                  +-----------------v-----------------+
+                  |            ClaimRecord            |
+                  |-----------------------------------|
