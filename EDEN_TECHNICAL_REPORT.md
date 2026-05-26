@@ -198,3 +198,43 @@ Eden's database models, defined in [models.py](file:///c:/Holidays/Eden/backend/
                   +-----------------v-----------------+
                   |            ClaimRecord            |
                   |-----------------------------------|
+                  | id (PK)                           |
+                  | claim_text (Text)                 |
+                  | detection_source (Enum)           |
+                  | classification_label (Enum)       |
+                  | confidence_score (Float)          |
+                  | transcript_reference (Text)       |
+                  | ocr_reference (Text)              |
+                  | related_sources (JSON List)       |
+                  +-----------------------------------+
+```
+
+### Model Definitions
+*   **`AnalysisJob`**: Represents the job lifecycle.
+    *   **Status State Machine**: Moves sequentially through: `PENDING` $\rightarrow$ `DOWNLOADING` $\rightarrow$ `PROCESSING` $\rightarrow$ `ANALYZING` $\rightarrow$ `GENERATING_REPORT` $\rightarrow$ `COMPLETED` / `FAILED`.
+*   **`AnalysisReport`**: Stores the raw, structured JSON report data returned by the orchestrator.
+*   **`MediaAsset`**: Tracks local paths, sizes, and extraction metadata for intermediate files (e.g., raw `VIDEO` downloads, `AUDIO` tracks, JPEGs in `FRAME_DIRECTORY`, and generated `THUMBNAIL` previews).
+*   **`ClaimRecord`**: Stores individual factual claims extracted from the content.
+    *   **Verdict Classifications**:
+        *   `VERIFIED_LIKELY_TRUE`
+        *   `PLAUSIBLE`
+        *   `UNVERIFIED`
+        *   `OPINION_OR_SATIRE`
+        *   `MISLEADING_CONTEXT`
+        *   `LIKELY_FALSE`
+        *   `HIGH_RISK`
+
+---
+
+## 7. Frontend Interface & UI Tokens
+
+The frontend uses a custom design system defined in [tokens.css](file:///c:/Holidays/Eden/frontend/src/tokens.css), configured for a sleek "Cold Signal" terminal theme.
+
+### Color System & Visual Identity
+```css
+/* Color Palette - tokens.css */
+--bg-base: #060608;                        /* Ultra dark deep slate */
+--bg-surface: rgba(15, 15, 20, 0.65);       /* Frosted glass overlay */
+--bg-card: rgba(22, 22, 30, 0.45);          /* Bento layout grids */
+
+/* Semantic Verdict Indicators */
