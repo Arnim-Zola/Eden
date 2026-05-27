@@ -439,6 +439,7 @@ function LogLine({ line, isLast }) {
 
   return (
     <motion.div
+      className="eden-log-line"
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
