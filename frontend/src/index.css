@@ -1,37 +1,34 @@
 @import './tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-.glass-card {
-    background: rgba(15, 15, 20, 0.55);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+@layer base {
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: 'Barlow Condensed', sans-serif;
+  }
 }
 
-.glass-card:hover {
-    border-color: rgba(255, 255, 255, 0.1);
-    background: rgba(20, 20, 28, 0.65);
-    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
-    transform: translateY(-2px);
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-.glow-blue {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.glow-blue-hover:hover {
-    box-shadow: 0 0 25px rgba(59, 130, 246, 0.3);
+::-webkit-scrollbar-thumb {
+  background: var(--border-muted);
+  border-radius: 3px;
 }
 
-.print-only-report {
-    position: absolute;
-    left: -9999px;
-    top: 0;
-    visibility: hidden;
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
 
 @media print {
@@ -70,4 +67,24 @@
     .no-print {
         display: none !important;
     }
+}
+
+/* Scroll Snap Containers */
+.eden-log-scroll {
+  scroll-snap-type: y proximity;
+  scroll-behavior: smooth;
+}
+
+.mission-log-scroll {
+  scroll-snap-type: y proximity;
+  scroll-behavior: smooth;
+}
+
+/* Scroll Snap Rows */
+.eden-log-line {
+  scroll-snap-align: start;
+}
+
+.mission-log-row {
+  scroll-snap-align: start;
 }
