@@ -88,3 +88,68 @@
 .mission-log-row {
   scroll-snap-align: start;
 }
+
+/* ─── Cyberpunk / Sci-fi Log Scroll Animations ──────────────── */
+
+@keyframes eden-log-fade {
+  0% {
+    opacity: 0.15;
+    filter: blur(1.5px);
+    transform: scale(0.96);
+    text-shadow: 0 0 0px transparent;
+  }
+  15% {
+    opacity: 1;
+    filter: blur(0px);
+    transform: scale(1);
+    text-shadow: 0 0 8px rgba(74, 184, 232, 0.25);
+  }
+  85% {
+    opacity: 1;
+    filter: blur(0px);
+    transform: scale(1);
+    text-shadow: 0 0 8px rgba(74, 184, 232, 0.25);
+  }
+  100% {
+    opacity: 0.15;
+    filter: blur(1.5px);
+    transform: scale(0.96);
+    text-shadow: 0 0 0px transparent;
+  }
+}
+
+@keyframes mission-log-fade {
+  0% {
+    opacity: 0.25;
+    filter: brightness(0.65) blur(0.5px);
+    transform: scale(0.97) translateY(4px);
+  }
+  10% {
+    opacity: 1;
+    filter: brightness(1) blur(0px);
+    transform: scale(1) translateY(0);
+  }
+  90% {
+    opacity: 1;
+    filter: brightness(1) blur(0px);
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0.25;
+    filter: brightness(0.65) blur(0.5px);
+    transform: scale(0.97) translateY(-4px);
+  }
+}
+
+/* Scroll-Driven Animations - Enabled via Feature Query */
+@supports (animation-timeline: view()) {
+  .eden-log-line {
+    animation: eden-log-fade linear both;
+    animation-timeline: view();
+  }
+
+  .mission-log-row {
+    animation: mission-log-fade linear both;
+    animation-timeline: view();
+  }
+}
