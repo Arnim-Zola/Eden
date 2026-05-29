@@ -199,6 +199,7 @@ function OperationRow({ op, isActive }) {
   return (
     <Link
       to={`/operation/${op.id}`}
+      className="mission-log-row"
       style={{ textDecoration: "none", display: "block" }}
     >
       <motion.div
@@ -530,6 +531,7 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
       {/* ── Operations List ── */}
       <div
         ref={scrollRef}
+        className="mission-log-scroll"
         style={{
           flex: 1,
           overflowY: "auto",
