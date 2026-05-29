@@ -238,3 +238,38 @@ The frontend uses a custom design system defined in [tokens.css](file:///c:/Holi
 --bg-card: rgba(22, 22, 30, 0.45);          /* Bento layout grids */
 
 /* Semantic Verdict Indicators */
+--color-true: #10B981;                      /* Neon Emerald */
+--color-plausible: #3B82F6;                 /* Signal Blue */
+--color-unverifiable: #F59E0B;              /* Retro Amber/Gold */
+--color-false: #F43F5E;                     /* Cyber Rose/Crimson */
+```
+
+### UI Features
+*   **AppShell**: Provides responsive layouts. Displays a left sidebar on desktop, and a fixed bottom tab bar (Home, History, Command Palette) on mobile screens.
+*   **Context Panel (Mission Log)**:
+    *   Displays statistics counters (TOTAL jobs, HIGH risk alerts, CLEAR safe results).
+    *   Lists past analysis jobs retrieved from `localStorage` using the `useOperationHistory` hook.
+    *   Provides a **PURGE** option to clear job history.
+*   **Command Palette (⌘K)**: A modal search interface triggered by pressing `⌘K` or `Ctrl+K`. It allows users to quickly search past records, toggle analysis modes, and clear the database logs.
+*   **Bento Dashboard**:
+    *   Presents information in structured bento grid containers.
+    *   Features an interactive timeline that links video timestamps directly to transcript and OCR lines.
+    *   Displays overall risk index ratings and formatted report summaries.
+*   **Detail Drawer**: A slide-out panel that displays deep-dive metadata, confidence bars, and search evidence links for selected claims.
+
+---
+
+## 8. Development & Configuration Details
+
+### Requirements & Run Configurations
+Eden runs on a split stack that depends on the following components:
+*   **Backend Server**: Django 4.2 REST Framework.
+*   **Queue Broker**: Redis 7.4 + Celery 5.6.
+*   **Frontend**: React + Vite.
+*   **Celery Windows Pool Configuration**: Celery relies on fork operations that are not natively supported on Windows. Run Celery workers with the `--pool=solo` flag:
+    ```powershell
+    celery -A core worker --loglevel=info --pool=solo
+    ```
+
+> [!WARNING]
+> Ingestion tasks will fail if [cookies.txt](file:///c:/Holidays/Eden/backend/config/cookies.txt) is missing or contains an expired Instagram session. Export cookies in Netscape format to prevent access issues.
