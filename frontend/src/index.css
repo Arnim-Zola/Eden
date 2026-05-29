@@ -1,34 +1,37 @@
 @import './tokens.css';
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  body {
-    background-color: var(--bg-base);
-    color: var(--text-primary);
-    font-family: 'Barlow Condensed', sans-serif;
-  }
+.glass-card {
+    background: rgba(15, 15, 20, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Custom Scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+.glass-card:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(20, 20, 28, 0.65);
+    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+    transform: translateY(-2px);
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+.glow-blue {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
 }
 
-::-webkit-scrollbar-thumb {
-  background: var(--border-muted);
-  border-radius: 3px;
+.glow-blue-hover:hover {
+    box-shadow: 0 0 25px rgba(59, 130, 246, 0.3);
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+.print-only-report {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    visibility: hidden;
 }
 
 @media print {
@@ -67,26 +70,6 @@
     .no-print {
         display: none !important;
     }
-}
-
-/* Scroll Snap Containers */
-.eden-log-scroll {
-  scroll-snap-type: y proximity;
-  scroll-behavior: smooth;
-}
-
-.mission-log-scroll {
-  scroll-snap-type: y proximity;
-  scroll-behavior: smooth;
-}
-
-/* Scroll Snap Rows */
-.eden-log-line {
-  scroll-snap-align: start;
-}
-
-.mission-log-row {
-  scroll-snap-align: start;
 }
 
 /* ─── Cyberpunk / Sci-fi Log Scroll Animations ──────────────── */
@@ -141,6 +124,26 @@
   }
 }
 
+/* Scroll Snap Containers */
+.eden-log-scroll {
+  scroll-snap-type: y proximity;
+  scroll-behavior: smooth;
+}
+
+.mission-log-scroll {
+  scroll-snap-type: y proximity;
+  scroll-behavior: smooth;
+}
+
+/* Scroll Snap Rows */
+.eden-log-line {
+  scroll-snap-align: start;
+}
+
+.mission-log-row {
+  scroll-snap-align: start;
+}
+
 /* Scroll-Driven Animations - Enabled via Feature Query */
 @supports (animation-timeline: view()) {
   .eden-log-line {
@@ -153,3 +156,31 @@
     animation-timeline: view();
   }
 }
+
+/* Premium Scrollbars matching the cyber-intelligence theme */
+.eden-log-scroll::-webkit-scrollbar,
+.mission-log-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.eden-log-scroll::-webkit-scrollbar-track,
+.mission-log-scroll::-webkit-scrollbar-track {
+  background: rgba(8, 11, 15, 0.4);
+  border-left: 1px solid rgba(30, 42, 56, 0.15);
+}
+
+.eden-log-scroll::-webkit-scrollbar-thumb,
+.mission-log-scroll::-webkit-scrollbar-thumb {
+  background: rgba(74, 184, 232, 0.18);
+  border-radius: 99px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.eden-log-scroll::-webkit-scrollbar-thumb:hover,
+.mission-log-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(74, 184, 232, 0.55);
+}
+
