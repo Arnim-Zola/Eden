@@ -141,7 +141,7 @@ pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver
 ```
-*Note: Run `celery -A core worker --loglevel=info` in a separate terminal to process background jobs.*
+*Note: Run `celery -A core worker --loglevel=info` in a separate terminal to process background jobs. (On Windows, run `python -m celery -A core worker --loglevel=info --pool=solo` to prevent execution hangs).*
 
 ### Frontend Installation
 ```bash
