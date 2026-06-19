@@ -1,9 +1,13 @@
 /**
  * ContextPanel.jsx — Eden Intelligence Platform
  * OSINT Mission Log · Cold Intelligence / Forensic Terminal aesthetic
+ * God Mode+ revision: glassmorphism + holographic scanlines, animated
+ * telemetry-style digit counters, staggered mission-log mount animation,
+ * magnetic energy-sweep row hovers, and scramble-decode headers.
+ * Props/data structures unchanged: operations, activeId, onClear.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -71,21 +75,128 @@ function truncateUrl(url, max = 24) {
   }
 }
 
+/* ─── Scramble-decode text (used for header labels) ──────────── */
+const SCRAMBLE_CHARS = "!<>-_\\/[]{}—=+*^?#0123456789";
+function useScrambleText(text, trigger) {
+  const [display, setDisplay] = useState(text);
+  const timeoutRef = useRef(null);
+
+  useEffect(() => {
+    if (!trigger) { setDisplay(text); return; }
+    let frame = 0;
+    const totalFrames = 14;
+    const step = () => {
+      frame += 1;
+      const progress = frame / totalFrames;
+      const revealCount = Math.floor(progress * text.length);
+      let out = "";
+      for (let i = 0; i < text.length; i++) {
+        if (i < revealCount) out += text[i];
+        else if (text[i] === " ") out += " ";
+        else out += SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+      }
+      setDisplay(out);
+      if (frame < totalFrames) {
+        timeoutRef.current = setTimeout(step, 26);
+      } else {
+        setDisplay(text);
+      }
+    };
+    step();
+    return () => clearTimeout(timeoutRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trigger, text]);
+
+  return display;
+}
+
+/* ─── Animated telemetry digit counter ───────────────────────── */
+function AnimatedCounter({ value, color }) {
+  const [display, setDisplay] = useState(value);
+  const prevRef = useRef(value);
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    const from = prevRef.current;
+    const to = value;
+    if (from === to) { setDisplay(to); return; }
+    const duration = 420;
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const current = Math.round(from + (to - from) * eased);
+      setDisplay(current);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        prevRef.current = to;
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [value]);
+
+  return (
+    <motion.span
+      key={value}
+      initial={{ opacity: 0.4, y: -2 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      style={{ display: "inline-block", color, textShadow: `0 0 12px ${color}88` }}
+    >
+      {display}
+    </motion.span>
+  );
+}
+
 /* ─── Sub-components ──────────────────────────────────────────── */
 
 function ScanlineOverlay() {
   return (
-    <div
-      aria-hidden
-      style={{
-        position: "absolute",
-        inset: 0,
-        pointerEvents: "none",
-        background:
-          "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(74,184,232,0.018) 2px, rgba(74,184,232,0.018) 4px)",
-        zIndex: 0,
-      }}
-    />
+    <>
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          background:
+            "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(74,184,232,0.018) 2px, rgba(74,184,232,0.018) 4px)",
+          zIndex: 0,
+        }}
+      />
+      {/* traveling holographic scan band */}
+      <motion.div
+        aria-hidden
+        initial={{ y: "-100%" }}
+        animate={{ y: "100%" }}
+        transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          height: "22%",
+          background: "linear-gradient(180deg, transparent, rgba(74,184,232,0.05), transparent)",
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      />
+      {/* faint grid */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          opacity: 0.04,
+          backgroundImage:
+            "linear-gradient(rgba(74,184,232,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(74,184,232,0.8) 1px, transparent 1px)",
+          backgroundSize: "22px 22px",
+          zIndex: 0,
+        }}
+      />
+    </>
   );
 }
 
@@ -118,7 +229,7 @@ function LiveIndicator() {
   );
 }
 
-function RiskBadge({ riskLevel, riskScore }) {
+function RiskBadge({ riskLevel, riskScore, hovered }) {
   const cfg = RISK_CONFIG[riskLevel] || RISK_CONFIG.pending;
   return (
     <div
@@ -130,23 +241,30 @@ function RiskBadge({ riskLevel, riskScore }) {
         flexShrink: 0,
       }}
     >
-      <div
+      <motion.div
+        animate={{
+          boxShadow: hovered
+            ? [`0 0 4px ${cfg.glow}`, `0 0 14px ${cfg.glow}`, `0 0 4px ${cfg.glow}`]
+            : `0 0 0px ${cfg.glow}`,
+        }}
+        transition={{ duration: 1.2, repeat: hovered ? Infinity : 0, ease: "easeInOut" }}
         style={{
           fontFamily: "'IBM Plex Mono', monospace",
           fontSize: 9,
           letterSpacing: "0.12em",
           color: cfg.color,
-          textShadow: `0 0 8px ${cfg.glow}`,
+          textShadow: `0 0 ${hovered ? 12 : 8}px ${cfg.glow}`,
           fontWeight: 700,
-          background: cfg.bg,
-          border: `1px solid ${cfg.border}`,
+          background: hovered ? cfg.bg.replace(/[\d.]+\)$/, "0.14)") : cfg.bg,
+          border: `1px solid ${hovered ? cfg.color : cfg.border}`,
           borderRadius: 3,
           padding: "1px 5px",
           lineHeight: 1.6,
+          transition: "background 0.2s, border-color 0.2s",
         }}
       >
         {cfg.label}
-      </div>
+      </motion.div>
       {riskScore != null && (
         <div
           style={{
@@ -192,6 +310,11 @@ function RiskBar({ riskScore, riskLevel }) {
   );
 }
 
+const rowVariants = {
+  hidden: { opacity: 0, x: -14 },
+  show: { opacity: 1, x: 0 },
+};
+
 function OperationRow({ op, isActive }) {
   const cfg = RISK_CONFIG[op.riskLevel] || RISK_CONFIG.pending;
   const [hovered, setHovered] = useState(false);
@@ -203,29 +326,50 @@ function OperationRow({ op, isActive }) {
       style={{ textDecoration: "none", display: "block" }}
     >
       <motion.div
+        variants={rowVariants}
         onHoverStart={() => setHovered(true)}
         onHoverEnd={() => setHovered(false)}
-        initial={{ opacity: 0, x: -12 }}
-        animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -8 }}
-        transition={{ duration: 0.28, ease: "easeOut" }}
+        animate={{
+          x: hovered ? 4 : 0,
+        }}
+        transition={{ type: "spring", stiffness: 420, damping: 30 }}
         style={{
           position: "relative",
           padding: "10px 12px",
           borderRadius: 6,
           border: isActive
             ? `1px solid ${cfg.border}`
-            : `1px solid ${hovered ? "rgba(74,184,232,0.15)" : "rgba(30,42,56,0.7)"}`,
+            : `1px solid ${hovered ? "rgba(74,184,232,0.2)" : "rgba(30,42,56,0.7)"}`,
           background: isActive
             ? cfg.bg
             : hovered
-            ? "rgba(74,184,232,0.04)"
-            : "rgba(8,11,15,0.5)",
+              ? "rgba(74,184,232,0.05)"
+              : "rgba(8,11,15,0.5)",
           cursor: "pointer",
           transition: "border 0.2s, background 0.2s",
           overflow: "hidden",
+          boxShadow: hovered ? `0 4px 20px -8px ${cfg.glow}` : "none",
         }}
       >
+        {/* energy sweep on hover */}
+        {hovered && (
+          <motion.span
+            key="row-sweep"
+            initial={{ x: "-120%" }}
+            animate={{ x: "220%" }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            style={{
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              width: "45%",
+              background: `linear-gradient(90deg, transparent, ${cfg.glow.replace(/[\d.]+\)$/, "0.14)")}, transparent)`,
+              pointerEvents: "none",
+            }}
+          />
+        )}
+
         {/* Left accent strip */}
         <div
           style={{
@@ -243,6 +387,7 @@ function OperationRow({ op, isActive }) {
 
         <div
           style={{
+            position: "relative",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "flex-end",
@@ -301,7 +446,7 @@ function OperationRow({ op, isActive }) {
           </div>
 
           {/* Right: risk badge */}
-          <RiskBadge riskLevel={op.riskLevel} riskScore={op.riskScore} />
+          <RiskBadge riskLevel={op.riskLevel} riskScore={op.riskScore} hovered={hovered} />
         </div>
 
         <RiskBar riskScore={op.riskScore} riskLevel={op.riskLevel} />
@@ -331,12 +476,10 @@ function StatCounter({ label, value, color = "#4ab8e8" }) {
           fontFamily: "'Barlow Condensed', sans-serif",
           fontSize: 20,
           fontWeight: 700,
-          color,
-          textShadow: `0 0 12px ${color}88`,
           lineHeight: 1,
         }}
       >
-        {value}
+        <AnimatedCounter value={value} color={color} />
       </div>
       <div
         style={{
@@ -358,6 +501,16 @@ function StatCounter({ label, value, color = "#4ab8e8" }) {
 
 export default function ContextPanel({ operations = [], activeId = null, onClear }) {
   const scrollRef = useRef(null);
+  const [headerHovered, setHeaderHovered] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const eyebrowText = useScrambleText("EDEN", mounted);
+  const subText = useScrambleText("OSINT OPS", headerHovered || mounted);
+  const missionLabel = useScrambleText("MISSION LOG", mounted);
 
   const stats = {
     total: operations.length,
@@ -372,13 +525,18 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
     }
   }, [operations.length]);
 
+  const handleHeaderEnter = useCallback(() => setHeaderHovered(true), []);
+  const handleHeaderLeave = useCallback(() => setHeaderHovered(false), []);
+
   return (
     <div
       style={{
         width: 240,
         minWidth: 240,
         height: "100vh",
-        background: "linear-gradient(180deg, #080b0f 0%, #0a0e14 100%)",
+        background: "linear-gradient(180deg, rgba(8,11,15,0.86) 0%, rgba(10,14,20,0.92) 100%)",
+        backdropFilter: "blur(14px)",
+        WebkitBackdropFilter: "blur(14px)",
         borderRight: "1px solid #1e2a38",
         display: "flex",
         flexDirection: "column",
@@ -391,6 +549,8 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
 
       {/* ── Header ── */}
       <div
+        onMouseEnter={handleHeaderEnter}
+        onMouseLeave={handleHeaderLeave}
         style={{
           padding: "18px 16px 14px",
           borderBottom: "1px solid #1e2a38",
@@ -409,7 +569,14 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <motion.div
-              animate={{ opacity: [0.7, 1, 0.7] }}
+              animate={{
+                opacity: [0.7, 1, 0.7],
+                boxShadow: [
+                  "0 0 10px rgba(74,184,232,0.1) inset",
+                  "0 0 18px rgba(74,184,232,0.25) inset",
+                  "0 0 10px rgba(74,184,232,0.1) inset",
+                ],
+              }}
               transition={{ duration: 2.5, repeat: Infinity }}
               style={{
                 width: 28,
@@ -420,7 +587,6 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
                 alignItems: "center",
                 justifyContent: "center",
                 background: "rgba(74,184,232,0.06)",
-                boxShadow: "0 0 14px rgba(74,184,232,0.15) inset",
               }}
             >
               <Shield size={14} color="#4ab8e8" />
@@ -434,9 +600,10 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
                   color: "#c8d8e8",
                   letterSpacing: "0.1em",
                   lineHeight: 1,
+                  minWidth: 40,
                 }}
               >
-                EDEN
+                {eyebrowText}
               </div>
               <div
                 style={{
@@ -444,16 +611,17 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
                   letterSpacing: "0.1em",
                   color: "#3a5060",
                   marginTop: 1,
+                  minWidth: 60,
                 }}
               >
-                OSINT OPS
+                {subText}
               </div>
             </div>
           </div>
           <LiveIndicator />
         </div>
 
-        {/* Stats row */}
+        {/* Stats row — telemetry readouts */}
         <div
           style={{
             display: "grid",
@@ -463,6 +631,8 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
             border: "1px solid rgba(30,42,56,0.8)",
             borderRadius: 6,
             padding: "10px 0",
+            position: "relative",
+            overflow: "hidden",
           }}
         >
           <StatCounter label="TOTAL" value={stats.total} color="#4ab8e8" />
@@ -492,9 +662,11 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
               letterSpacing: "0.16em",
               color: "#3a5060",
               textTransform: "uppercase",
+              minWidth: 78,
+              display: "inline-block",
             }}
           >
-            MISSION LOG
+            {missionLabel}
           </span>
         </div>
         <AnimatePresence>
@@ -605,7 +777,16 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
               ))}
             </motion.div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <motion.div
+              key="list"
+              initial="hidden"
+              animate="show"
+              variants={{
+                hidden: {},
+                show: { transition: { staggerChildren: 0.05 } },
+              }}
+              style={{ display: "flex", flexDirection: "column", gap: 6 }}
+            >
               {operations.map((op) => (
                 <OperationRow
                   key={op.id}
@@ -613,7 +794,7 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
                   isActive={String(op.id) === String(activeId)}
                 />
               ))}
-            </div>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
