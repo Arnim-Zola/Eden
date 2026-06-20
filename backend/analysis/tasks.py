@@ -156,7 +156,8 @@ def analyze_job_content(job_id: int):
             report_data = orchestrator.analyze_content(
                 ocr_text=ocr_text, 
                 transcript_text=transcript_text, 
-                analysis_type=job.analysis_type
+                analysis_type=job.analysis_type,
+                job_id=job.id
             )
 
         with transaction.atomic():
