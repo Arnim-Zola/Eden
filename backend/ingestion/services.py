@@ -198,21 +198,49 @@ class InstagramIngestionService:
         print(f"!!! AUDIO+VIDEO DOWNLOAD: {' '.join(cmd[-5:])} !!!")
         try:
             subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)
+            return self._find_downloaded_file()
         except subprocess.CalledProcessError as e:
             error_msg = e.stderr.strip() if e.stderr else str(e)
-            if 'no video formats found' in error_msg.lower():
+            error_lower = error_msg.lower()
+            print(f"!!! yt-dlp audio download failed: {error_msg} !!!")
+
+            # Distinguish image posts from real failures
+            if 'no video formats found' in error_lower or 'there is no video in this post' in error_lower:
                 raise InstagramIngestionException(
                     "MODE_MISMATCH: AUDIO mode was selected but this post contains only images. "
-                    "Switch to TEXT mode."
+                    "Switch to TEXT mode to analyze image-based content."
                 )
-            raise InstagramIngestionException(f"yt-dlp audio download failed: {error_msg}")
-        return self._find_downloaded_file()
+
+            # Check for other fatal errors
+            if 'private' in error_lower:
+                self._raise_from_ytdlp_error(error_lower, error_msg)
+            if 'deleted' in error_lower or 'not found' in error_lower or 'not available' in error_lower:
+                self._raise_from_ytdlp_error(error_lower, error_msg)
+
+            print("!!! yt-dlp failed in AUDIO mode — trying Playwright fallback !!!")
+
+        # Attempt 2: Playwright fallback (specifically looking for a video)
+        try:
+            local_path = self._download_via_playwright(url)
+            ext = Path(local_path).suffix.lower()
+            is_video = ext in VIDEO_EXTENSIONS
+            if not is_video:
+                raise InstagramIngestionException(
+                    "MODE_MISMATCH: AUDIO mode was selected but this post contains only images. "
+                    "Switch to TEXT mode to analyze image-based content."
+                )
+            return local_path
+        except InstagramIngestionException:
+            raise
+        except Exception as pe:
+            raise InstagramIngestionException(f"AUDIO download failed: {pe}")
 
     def _download_text_mode(self, base_args: list, output_template: str, url: str) -> str:
         """
         TEXT mode: try yt-dlp (best) first for video/reel.
-        On 'No video formats found', fall back to yt-dlp thumbnail download for image posts.
-        No HTML scraping. Media acquisition only.
+        If yt-dlp fails (either because it is an image post or due to scrape blocks),
+        fall back to instaloader.
+        If instaloader also fails, fall back to Playwright.
         """
         import subprocess
 
@@ -228,17 +256,24 @@ class InstagramIngestionService:
         except subprocess.CalledProcessError as e:
             error_msg = e.stderr.strip() if e.stderr else str(e)
             error_lower = error_msg.lower()
+            print(f"!!! yt-dlp download failed: {error_msg} !!!")
 
-            # Distinguish image posts from real failures
-            if 'no video formats found' not in error_lower:
+            # Check if this is a known fatal error where we shouldn't even try fallback (e.g., private content, deleted)
+            if 'private' in error_lower:
+                self._raise_from_ytdlp_error(error_lower, error_msg)
+            if 'deleted' in error_lower or 'not found' in error_lower or 'not available' in error_lower:
                 self._raise_from_ytdlp_error(error_lower, error_msg)
 
-            print("!!! IMAGE POST DETECTED (no video formats) — switching to instaloader !!!")
+            print("!!! yt-dlp failed or image post detected — trying instaloader fallback !!!")
 
         # Attempt 2: instaloader — purpose-built Instagram downloader
-        # Handles image posts, carousels, reels via Instagram's own API.
-        # yt-dlp cannot extract image posts at all.
-        return self._download_image_via_instaloader(url)
+        try:
+            return self._download_image_via_instaloader(url)
+        except Exception as ie:
+            print(f"!!! instaloader fallback failed: {ie} — trying Playwright fallback !!!")
+
+        # Attempt 3: Playwright fallback
+        return self._download_via_playwright(url)
 
     def _download_image_via_instaloader(self, url: str) -> str:
         """
@@ -327,6 +362,97 @@ class InstagramIngestionService:
         shutil.move(os.path.join(self.download_dir, best), dest)
         print(f"!!! INSTALOADER: saved as {dest} !!!")
         return dest
+
+    def _download_via_playwright(self, url: str) -> str:
+        """
+        Playwright-based fallback scraper.
+        Extracts the image or video URL from the page and downloads it.
+        """
+        from playwright.sync_api import sync_playwright
+        import requests
+
+        print(f"!!! PLAYWRIGHT FALLBACK: url={url} !!!")
+        
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                user_agent = (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                )
+                context = browser.new_context(
+                    user_agent=user_agent,
+                    viewport={"width": 1280, "height": 800}
+                )
+                page = context.new_page()
+                page.set_default_timeout(30000) # 30s timeout
+                
+                print(f"!!! Playwright navigating to {url} !!!")
+                page.goto(url, wait_until="networkidle")
+                page.wait_for_timeout(3000) # Give 3 seconds to fully render
+                
+                # Check for video first
+                video_src = page.evaluate("""
+                    () => {
+                        const video = document.querySelector('article video, video');
+                        return video ? video.src : null;
+                    }
+                """)
+                
+                media_url = None
+                is_video = False
+                
+                if video_src:
+                    media_url = video_src
+                    is_video = True
+                    print(f"!!! Playwright found video: {media_url} !!!")
+                else:
+                    # Look for article images first
+                    img_srcs = page.evaluate("""
+                        () => {
+                            const imgs = Array.from(document.querySelectorAll('article img'));
+                            return imgs.map(img => img.src);
+                        }
+                    """)
+                    if not img_srcs:
+                        # Fallback to general large images
+                        img_srcs = page.evaluate("""
+                            () => {
+                                const imgs = Array.from(document.querySelectorAll('img'));
+                                return imgs.filter(img => img.naturalWidth > 150 || img.width > 150).map(img => img.src);
+                            }
+                        """)
+                    
+                    if img_srcs:
+                        media_url = img_srcs[0]
+                        print(f"!!! Playwright found image: {media_url} !!!")
+                
+                if not media_url:
+                    raise InstagramIngestionException(
+                        "PLAYWRIGHT_FAILED: No image or video media found on page."
+                    )
+                
+                # Download the media
+                ext = '.mp4' if is_video else '.jpg'
+                dest_path = os.path.join(self.download_dir, f'source_media{ext}')
+                
+                print(f"!!! Playwright downloading media to {dest_path} !!!")
+                r = requests.get(media_url, headers={"User-Agent": user_agent}, timeout=60)
+                if r.status_code == 200:
+                    with open(dest_path, 'wb') as f:
+                        f.write(r.content)
+                    print(f"!!! Playwright download successful: size={len(r.content)} !!!")
+                else:
+                    raise InstagramIngestionException(
+                        f"PLAYWRIGHT_FAILED: HTTP status {r.status_code} when downloading media."
+                    )
+                    
+                browser.close()
+                return dest_path
+                
+        except Exception as e:
+            print(f"!!! PLAYWRIGHT SCRAPING FAILED: {e} !!!")
+            raise InstagramIngestionException(f"PLAYWRIGHT_FAILED: {str(e)}")
 
 
     def _find_downloaded_file(self, extensions=None) -> str:
