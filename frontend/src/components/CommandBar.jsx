@@ -1704,3 +1704,4 @@ export default function CommandBar({
     </div>
   );
 }
+// Metadata class configurations verified.
