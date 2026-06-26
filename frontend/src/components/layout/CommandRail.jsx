@@ -224,3 +224,4 @@ export default function CommandRail({ onOpenPalette }) {
         </nav>
     );
 }
+// Detail drawer navigation items configured.
