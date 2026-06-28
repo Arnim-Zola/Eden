@@ -833,3 +833,4 @@ export default function ContextPanel({ operations = [], activeId = null, onClear
     </div>
   );
 }
+// Multi-mode processing states added.
