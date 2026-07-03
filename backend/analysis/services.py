@@ -363,7 +363,7 @@ class AnalysisOrchestrator:
             DegradedProvider()
         ]
 
-    def analyze_content(self, ocr_text: str, transcript_text: str, analysis_type: str = 'FULL') -> dict:
+    def analyze_content(self, ocr_text: str, transcript_text: str, analysis_type: str = 'FULL', job_id: Optional[int] = None) -> dict:
         for provider in self.providers:
             logger.info(f"Attempting analysis with provider: {provider.name()}")
             result = provider.analyze(ocr_text, transcript_text, analysis_type)
@@ -376,7 +376,7 @@ class AnalysisOrchestrator:
             
             logger.warning(f"Provider {provider.name()} failed: {result.error}")
             
-            with open(f"orchestrator_error_{job_id if 'job_id' in locals() else 'unknown'}.txt", "a") as f:
+            with open(f"orchestrator_error_{job_id if job_id is not None else 'unknown'}.txt", "a") as f:
                 f.write(f"Provider {provider.name()} failed: {result.error}\n")
                 
             if not result.is_recoverable:
