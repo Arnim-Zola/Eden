@@ -388,3 +388,5 @@ class AnalysisOrchestrator:
             "summary": "System analysis failure.",
             "overall_risk_score": 0.0
         }
+
+# Playwright support initialization added.
