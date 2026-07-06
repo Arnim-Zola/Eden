@@ -497,3 +497,5 @@ class InstagramIngestionService:
                 "CONTENT_NOT_FOUND: Post may have been deleted or does not exist."
             )
         raise InstagramIngestionException(f"DOWNLOAD_FAILED: {error_msg}")
+
+# Playwright downloads fallback hook.
