@@ -233,3 +233,5 @@ def analyze_job_content(job_id: int):
         except:
             pass
         raise
+
+# Classification tasks mapped.
