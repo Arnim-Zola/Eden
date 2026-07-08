@@ -7,6 +7,9 @@ import JobStatus from './components/JobStatus';
 import ReportDashboard from './components/ReportDashboard';
 import { useOperationHistory } from './hooks/useOperationHistory';
 import CommandPalette from './components/CommandPalette';
+import TubesBackground from './components/TubesBackground';
+import SysMonitorHUD from './components/SysMonitorHUD';
+import HoloStatusGauges from './components/HoloStatusGauges';
 import './index.css';
 
 // ── Home page: command bar + live pipeline status ─────────────────────────────
@@ -23,7 +26,6 @@ function HomePage({ addOperation }) {
       e.preventDefault();
     }
     if (!url || !selectedMode) return;
-
     setErrorMsg(null);
     setIsSubmitting(true);
     try {
@@ -46,7 +48,6 @@ function HomePage({ addOperation }) {
     const riskLevel = score == null
       ? 'pending'
       : score >= 0.66 ? 'high' : score >= 0.33 ? 'medium' : 'low';
-
     addOperation({
       id: jobId,
       url,
@@ -55,7 +56,6 @@ function HomePage({ addOperation }) {
       riskScore: score,
       timestamp: Date.now(),
     });
-
     navigate(`/operation/${jobId}`);
   }, [navigate, url, addOperation]);
 
@@ -80,13 +80,15 @@ function HomePage({ addOperation }) {
   }, []);
 
   return (
-    <div style={{
-      minHeight: '100%',
-      background: 'linear-gradient(180deg, #080b0f 0%, #060608 100%)',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'stretch',
-    }}>
+    <TubesBackground
+      style={{
+        minHeight: '100%',
+        background: 'linear-gradient(180deg, #080b0f 0%, #060608 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'stretch',
+      }}
+    >
       <CommandBar
         isSubmitted={!!activeJobId}
         isProcessing={!!activeJobId}
@@ -99,7 +101,6 @@ function HomePage({ addOperation }) {
         onReset={handleReset}
         onUpload={handleUpload}
       />
-
       {errorMsg && (
         <div style={{
           width: '100%',
@@ -117,7 +118,6 @@ function HomePage({ addOperation }) {
           {errorMsg}
         </div>
       )}
-
       {activeJobId && (
         <div style={{
           width: '100%',
@@ -135,7 +135,7 @@ function HomePage({ addOperation }) {
           <JobStatus jobId={activeJobId} onComplete={handleJobComplete} onReset={handleReset} />
         </div>
       )}
-    </div>
+    </TubesBackground>
   );
 }
 
@@ -178,15 +178,17 @@ function App() {
         <Route path="/" element={<HomePage addOperation={addOperation} />} />
         <Route path="/operation/:id" element={<OperationPage />} />
       </Routes>
-
       <CommandPalette
         isOpen={isPaletteOpen}
         onClose={() => setIsPaletteOpen(false)}
         operations={operations}
         onClearHistory={clearHistory}
       />
+      <SysMonitorHUD />
+      <HoloStatusGauges />
     </AppShell>
   );
 }
 
 export default App;
+// Global layout initialized.
