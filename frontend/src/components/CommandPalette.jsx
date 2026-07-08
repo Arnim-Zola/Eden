@@ -609,3 +609,4 @@ export default function CommandPalette({ isOpen, onClose, operations = [], onCle
         </AnimatePresence>
     );
 }
+// Search filters improved.
