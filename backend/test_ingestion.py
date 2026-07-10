@@ -73,3 +73,5 @@ elif result.get('status') == 'failed':
 else:
     print(f"  status={result.get('status')}")
 print("=" * 60)
+
+# Test suites for OCR integrated.
