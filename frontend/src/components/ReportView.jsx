@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ClaimCard from './ClaimCard';
 import { getJob } from '../services/api';
+import AudioWaveVisualizer from './AudioWaveVisualizer';
 
 const ReportView = ({ jobId }) => {
   const [jobData, setJobData] = useState(null);
@@ -105,7 +106,7 @@ const ReportView = ({ jobId }) => {
         )}
 
         {activeTab === 'transcript' && (
-          <div className="space-y-3 animate-fade-in">
+          <div className="space-y-4 animate-fade-in">
             <h2 className="text-base font-bold text-white flex items-center gap-2 mb-1">
               <div className="w-5 h-5 flex items-center justify-center shrink-0 bg-green-500/10 rounded">
                 <svg className="w-3.5 h-3.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -114,6 +115,11 @@ const ReportView = ({ jobId }) => {
               </div>
               Audio Transcript
             </h2>
+            {transcriptAsset?.metadata?.unified_transcript && (
+              <div className="mb-4">
+                <AudioWaveVisualizer />
+              </div>
+            )}
             {transcriptAsset?.metadata?.unified_transcript ? (
               <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 whitespace-pre-wrap font-mono text-sm text-slate-300 leading-relaxed shadow-inner overflow-y-auto max-h-[400px]">
                 {transcriptAsset.metadata.unified_transcript}
