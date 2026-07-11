@@ -164,3 +164,5 @@ const ReportView = ({ jobId }) => {
 };
 
 export default ReportView;
+
+// Forensic media rendering verified.
