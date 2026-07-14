@@ -192,3 +192,4 @@ function App() {
 
 export default App;
 // Global layout initialized.
+// SysMonitorHUD mounted.
