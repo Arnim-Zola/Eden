@@ -500,6 +500,17 @@ function ModeCard({ mode, label, icon: Icon, desc, isSelected, onClick, locked }
   const glareX = useTransform(spx, (v) => `${v * 100}%`);
   const glareY = useTransform(spy, (v) => `${v * 100}%`);
 
+  const glareBackground = useTransform(
+    [glareX, glareY],
+    ([gx, gy]) =>
+      `radial-gradient(220px circle at ${gx} ${gy}, rgba(255,255,255,0.14), rgba(74,184,232,0.06) 40%, transparent 70%)`
+  );
+
+  const edgeBackground = useTransform(
+    [glareX, glareY],
+    ([gx, gy]) => `linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.08) ${gx}, transparent 70%)`
+  );
+
   const [hovered, setHovered] = useState(false);
 
   const handleMove = (e) => {
@@ -557,11 +568,7 @@ function ModeCard({ mode, label, icon: Icon, desc, isSelected, onClick, locked }
               pointerEvents: "none",
               opacity: hovered ? 1 : 0,
               transition: "opacity 0.25s",
-              background: useTransform(
-                [glareX, glareY],
-                ([gx, gy]) =>
-                  `radial-gradient(220px circle at ${gx} ${gy}, rgba(255,255,255,0.14), rgba(74,184,232,0.06) 40%, transparent 70%)`
-              ),
+              background: glareBackground,
               transform: "translateZ(30px)",
             }}
           />
@@ -578,10 +585,7 @@ function ModeCard({ mode, label, icon: Icon, desc, isSelected, onClick, locked }
               borderRadius: 8,
               opacity: hovered ? 0.9 : 0,
               transition: "opacity 0.3s",
-              background: useTransform(
-                [glareX, glareY],
-                ([gx, gy]) => `linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.08) ${gx}, transparent 70%)`
-              ),
+              background: edgeBackground,
               mixBlendMode: "screen",
             }}
           />
