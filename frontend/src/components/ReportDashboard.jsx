@@ -546,7 +546,7 @@ function ForensicTimeline({ claims, selectedId, onSelectId }) {
 function ForensicMediaPreview({ jobData, isTablet }) {
   const assets = jobData?.media_assets ?? [];
   const instagramUrl = jobData?.instagram_url;
-  const isUpload = jobData?.ingestion_source === 'upload';
+  const isUpload = (jobData?.ingestion_source ?? '').toUpperCase() === 'UPLOAD';
   const originalFile = jobData?.original_filename;
 
   const videoAsset = assets.find(a => a.asset_type === 'VIDEO' || a.asset_type === 'VIDEO_SOURCE');
@@ -571,7 +571,8 @@ function ForensicMediaPreview({ jobData, isTablet }) {
 
   const duration = jobData?.media_duration ?? jobData?.duration ?? null;
   const handle = jobData?.source_handle ?? jobData?.handle ?? null;
-  const createdAt = jobData?.created_at ?? null;
+  // Fall back to first media asset's creation time if job has no created_at
+  const createdAt = jobData?.created_at ?? assets[0]?.created_at ?? null;
 
   const formatDur = (s) => {
     if (!s) return null;
