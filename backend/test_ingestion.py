@@ -23,7 +23,7 @@ django.setup()
 from core_app.models import AnalysisJob, AnalysisJobStatus, MediaAsset, MediaAssetType
 
 # ── Test target ───────────────────────────────────────────────────────────────
-TEST_URL = "https://www.instagram.com/p/DZ5M5SUxwgM/"
+TEST_URL = "https://www.instagram.com/p/DaQG75BmJLR"
 TEST_MODE = "text"
 # ─────────────────────────────────────────────────────────────────────────────
 
