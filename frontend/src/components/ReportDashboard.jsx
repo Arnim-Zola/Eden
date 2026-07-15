@@ -1066,3 +1066,4 @@ export default function ReportDashboard({ onReset }) {
   );
 }
 // Audio wave visualization hook.
+// IntelNetworkGraph rendering overlay.
