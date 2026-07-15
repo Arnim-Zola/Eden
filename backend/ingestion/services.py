@@ -95,13 +95,13 @@ class InstagramIngestionService:
         )
         cookies_path = os.path.join(settings.BASE_DIR, 'config', 'cookies.txt')
 
-        if not (os.path.exists(cookies_path) and os.path.getsize(cookies_path) > 200):
-            raise InstagramIngestionException(
-                "COOKIES_REQUIRED: cookies.txt missing or empty. "
-                "Export Instagram session cookies and save to backend/config/cookies.txt."
-            )
+        cookie_args = []
+        if os.path.exists(cookies_path) and os.path.getsize(cookies_path) > 100:
+            cookie_args = ['--cookies', cookies_path]
+            print("[INFO] Ingestion: cookies.txt found and loaded.")
+        else:
+            print("[WARN] Ingesting anonymously: backend/config/cookies.txt is missing or empty.")
 
-        cookie_args = ['--cookies', cookies_path]
         base_args = [
             'yt-dlp', '--config-location', 'NUL',
             '--no-cookies-from-browser', '--user-agent', user_agent,
