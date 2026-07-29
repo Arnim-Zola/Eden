@@ -7,6 +7,8 @@ services:
     buildCommand: "cd backend && chmod +x build.sh && ./build.sh"
     startCommand: "cd backend && gunicorn core.wsgi:application --timeout 120 --workers 1"
     envVars:
+      - key: GUNICORN_CMD_ARGS
+        value: "--timeout 120 --workers 1"
       - key: PYTHON_VERSION
         value: "3.11.0"
       - key: DJANGO_DEBUG
