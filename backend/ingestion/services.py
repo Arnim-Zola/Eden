@@ -50,6 +50,7 @@ class InstagramIngestionService:
         """
         import subprocess
         import json
+        import sys
 
         print(f"!!! MODE-AWARE INGESTION (mode={mode}) url={url} !!!")
 
@@ -102,8 +103,12 @@ class InstagramIngestionService:
         else:
             print("[WARN] Ingesting anonymously: backend/config/cookies.txt is missing or empty.")
 
+        import sys
+        import os as _os
+        _devnull = 'NUL' if _os.name == 'nt' else '/dev/null'
+
         base_args = [
-            'yt-dlp', '--config-location', 'NUL',
+            sys.executable, '-m', 'yt_dlp', '--config-location', _devnull,
             '--no-cookies-from-browser', '--user-agent', user_agent,
         ] + cookie_args
 
