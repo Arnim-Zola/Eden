@@ -18,9 +18,25 @@ export function TubesBackground({
 }) {
     const canvasRef = useRef(null);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
     const tubesRef = useRef(null);
 
     useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    useEffect(() => {
+        // Skip ThreeJS tubes on mobile to save power/CPU/battery
+        if (window.innerWidth < 768) {
+            console.log("Eden Tubes: Mobile viewport detected. Disabling interactive tubes background to preserve processing power.");
+            return;
+        }
+
         let mounted = true;
         let cleanup;
 
@@ -86,7 +102,7 @@ export function TubesBackground({
     }, []);
 
     const handleClick = () => {
-        if (!enableClickInteraction || !tubesRef.current) return;
+        if (!enableClickInteraction || !tubesRef.current || isMobile) return;
 
         const colors = randomColors(3);
         const lightsColors = randomColors(4);
@@ -101,11 +117,13 @@ export function TubesBackground({
             style={style}
             onClick={handleClick}
         >
-            <canvas
-                ref={canvasRef}
-                className="fixed inset-0 w-full h-full block"
-                style={{ touchAction: 'none', pointerEvents: 'none', zIndex: 0 }}
-            />
+            {!isMobile && (
+                <canvas
+                    ref={canvasRef}
+                    className="fixed inset-0 w-full h-full block"
+                    style={{ touchAction: 'none', pointerEvents: 'none', zIndex: 0 }}
+                />
+            )}
 
             {/* Content overlay — pointer-events-none REMOVED so inputs/buttons/tabs stay interactive */}
             <div className="relative z-10 w-full">
@@ -116,4 +134,5 @@ export function TubesBackground({
 }
 
 export default TubesBackground;
+// Particle speed curves optimized.
 // Particle speed curves optimized.
