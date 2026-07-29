@@ -2,6 +2,7 @@ import os
 import cv2
 import json
 from django.conf import settings
+from typing import Optional
 
 class FrameExtractionException(Exception):
     pass
