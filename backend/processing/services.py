@@ -107,8 +107,7 @@ class OcrExtractionException(Exception):
 class OcrExtractionService:
     def __init__(self, job_id: int):
         self.job_id = job_id
-        # Initialize EasyOCR reader. Use GPU if available, else fallback to CPU.
-        self.reader = easyocr.Reader(['en'], gpu=False)
+        self.reader = None
         
     def extract_from_image(self, image_path: str) -> list:
         """
@@ -125,6 +124,9 @@ class OcrExtractionService:
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
         enhanced = clahe.apply(gray)
+            
+        if self.reader is None:
+            self.reader = easyocr.Reader(['en'], gpu=False)
             
         results = self.reader.readtext(enhanced)
         blocks = []
@@ -191,8 +193,7 @@ class AudioExtractionService:
     def __init__(self, job_id: int):
         self.job_id = job_id
         self.media_dir = os.path.join(settings.BASE_DIR.parent, 'media', str(job_id))
-        # Initialize whisper model. Using "base" for MVP speed.
-        self.model = whisper.load_model("base")
+        self.model = None
         
     def extract_audio(self, video_path: str):
         """
@@ -212,39 +213,34 @@ class AudioExtractionService:
                 # No audio stream found, silent video!
                 return None
         except Exception as e:
-            raise AudioExtractionException(f"Failed to probe video for audio streams: {str(e)}")
+            logger.warning(f"ffprobe failed to verify audio stream, assuming it exists: {e}")
         
-        # 2. Extract audio if stream exists
+        # 2. Extract to WAV using ffmpeg
         command = [
-            'ffmpeg', '-y', '-i', video_path, 
-            '-vn', '-acodec', 'pcm_s16le', 
-            '-ar', '16000', '-ac', '1', 
+            'ffmpeg', '-y', '-i', video_path,
+            '-vn', '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1',
             audio_path
         ]
-        
         try:
             result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             if result.returncode != 0:
-                raise AudioExtractionException(f"FFmpeg extraction failed: {result.stderr}")
-        except FileNotFoundError:
-            raise AudioExtractionException("FFmpeg not found. Ensure FFmpeg is installed and in PATH.")
+                raise AudioExtractionException(f"ffmpeg returned non-zero code: {result.stderr}")
+            if os.path.exists(audio_path):
+                return audio_path
         except Exception as e:
-            raise AudioExtractionException(f"Unexpected error during FFmpeg extraction: {str(e)}")
+            raise AudioExtractionException(f"ffmpeg execution failed: {str(e)}")
             
-        if not os.path.exists(audio_path):
-            raise AudioExtractionException("Audio extraction completed but file not found.")
-            
-        return audio_path
+        return None
 
-    def extract_thumbnail(self, video_path: str) -> str:
+    def extract_thumbnail(self, video_path: str) -> Optional[str]:
         """
-        Extract a single frame from the video as a thumbnail for the report.
+        Extracts a single thumbnail frame from the video at 00:00:01.
+        Returns the thumbnail image path, or None if extraction fails.
         """
-        thumb_path = os.path.join(self.media_dir, "thumbnail.jpg")
-        # Extract frame at 1 second mark (or 0 if very short)
+        thumb_path = os.path.join(self.media_dir, "video_thumbnail.jpg")
         command = [
-            'ffmpeg', '-y', '-i', video_path,
-            '-ss', '00:00:01', '-vframes', '1',
+            'ffmpeg', '-y', '-ss', '00:00:01', '-i', video_path,
+            '-vframes', '1', '-q:v', '2',
             '-f', 'image2', thumb_path
         ]
         try:
@@ -260,6 +256,12 @@ class AudioExtractionService:
         Transcribes the audio using Whisper and returns the segments and unified transcript.
         """
         try:
+            if self.model is None:
+                # Default to "tiny" in production to avoid Out of Memory (OOM) on 512MB RAM free tier.
+                model_name = os.environ.get("WHISPER_MODEL_NAME", "tiny")
+                logger.info(f"Loading Whisper model '{model_name}' on-demand...")
+                self.model = whisper.load_model(model_name)
+                
             # Transcribe the audio
             # fp16=False is needed if running on CPU to avoid warnings
             result = self.model.transcribe(audio_path, fp16=False)
