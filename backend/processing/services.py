@@ -1,5 +1,4 @@
 import os
-import cv2
 import json
 from django.conf import settings
 from typing import Optional
@@ -23,6 +22,7 @@ class FrameExtractionService:
         Generates full size JPEGs and 320px thumbnails.
         Returns the path to the generated manifest JSON.
         """
+        import cv2
         if not os.path.exists(video_path):
             raise FrameExtractionException(f"Video file not found at {video_path}")
             
@@ -115,6 +115,7 @@ class OcrExtractionService:
         if not os.path.exists(image_path):
             raise OcrExtractionException(f"Image not found: {image_path}")
             
+        import cv2
         img = cv2.imread(image_path)
         if img is None:
             raise OcrExtractionException(f"Failed to read image with cv2: {image_path}")
