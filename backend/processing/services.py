@@ -289,43 +289,96 @@ class AudioExtractionService:
 
     def transcribe_audio(self, audio_path: str) -> dict:
         """
-        Transcribes the audio using Whisper and returns the segments and unified transcript.
+        Transcribes the audio using Gemini Audio API.
+        This replaces local Whisper to prevent OOM crashes on 512MB RAM free tier.
         """
+        if not os.path.exists(audio_path):
+            raise AudioExtractionException(f"Audio file not found: {audio_path}")
+
         try:
-            if self.model is None:
-                import whisper
-                # Default to "tiny" in production to avoid Out of Memory (OOM) on 512MB RAM free tier.
-                model_name = os.environ.get("WHISPER_MODEL_NAME", "tiny")
-                logger.info(f"Loading Whisper model '{model_name}' on-demand...")
-                self.model = whisper.load_model(model_name)
-                
-            # Transcribe the audio
-            # fp16=False is needed if running on CPU to avoid warnings
-            result = self.model.transcribe(audio_path, fp16=False)
+            from google import genai
+            from google.genai import types
+            import json
+
+            api_key = os.environ.get("GEMINI_API_KEY")
+            if not api_key:
+                raise AudioExtractionException("GEMINI_API_KEY not set — cannot run audio transcription")
+
+            client = genai.Client(api_key=api_key)
+
+            print(f"!!! Uploading audio {audio_path} to Gemini File API...")
+            audio_file = client.files.upload(file=audio_path)
+            print(f"!!! Upload successful. File name: {audio_file.name}")
+
+            prompt = (
+                "Transcribe this audio file accurately. "
+                "Provide the transcription as a JSON object with this exact structure: "
+                "{\n"
+                "  \"unified_transcript\": \"full transcription text goes here\",\n"
+                "  \"segments\": [\n"
+                "    {\n"
+                "      \"start\": 0.0,\n"
+                "      \"end\": 5.0,\n"
+                "      \"text\": \"segment text\"\n"
+                "    }\n"
+                "  ]\n"
+                "}\n"
+                "Ensure timestamps are floats. Split segments at logical sentences or pauses."
+            )
+
+            print("!!! Requesting transcription from gemini-2.5-flash...")
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[audio_file, prompt],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=types.Schema(
+                        type=types.Type.OBJECT,
+                        properties={
+                            "unified_transcript": types.Schema(type=types.Type.STRING),
+                            "segments": types.Schema(
+                                type=types.Type.ARRAY,
+                                items=types.Schema(
+                                    type=types.Type.OBJECT,
+                                    properties={
+                                        "start": types.Schema(type=types.Type.NUMBER),
+                                        "end": types.Schema(type=types.Type.NUMBER),
+                                        "text": types.Schema(type=types.Type.STRING),
+                                    },
+                                    required=["start", "end", "text"]
+                                )
+                            )
+                        },
+                        required=["unified_transcript", "segments"]
+                    )
+                )
+            )
+
+            # Delete the file from Gemini File API to clean up
+            try:
+                client.files.delete(name=audio_file.name)
+                print("!!! Cleaned up file from Gemini File API")
+            except Exception as de:
+                print(f"!!! Failed to clean up file (non-fatal): {de}")
+
+            result = json.loads(response.text)
             
             transcript_data = {
                 "job_id": self.job_id,
-                "unified_transcript": result.get('text', '').strip(),
+                "unified_transcript": result.get('unified_transcript', '').strip(),
                 "segments": []
             }
             
-            last_text = ""
-            for segment in result.get('segments', []):
-                text = segment['text'].strip()
-                # Basic hallucination deduplication: skip if identical to last segment
-                if text and text != last_text:
-                    transcript_data["segments"].append({
-                        "start": segment['start'],
-                        "end": segment['end'],
-                        "text": text,
-                        "confidence": segment.get('avg_logprob', 0.0)
-                    })
-                    last_text = text
-                
-            # Rebuild unified transcript from deduplicated segments
-            transcript_data["unified_transcript"] = " ".join(s["text"] for s in transcript_data["segments"])
-                
+            for seg in result.get('segments', []):
+                transcript_data["segments"].append({
+                    "start": float(seg.get('start', 0.0)),
+                    "end": float(seg.get('end', 0.0)),
+                    "text": seg.get('text', '').strip(),
+                    "confidence": 0.95
+                })
+
+            print("!!! Gemini transcription successful!")
             return transcript_data
-            
+
         except Exception as e:
-            raise AudioExtractionException(f"Whisper transcription failed: {str(e)}")
+            raise AudioExtractionException(f"Gemini audio transcription failed: {str(e)}")
