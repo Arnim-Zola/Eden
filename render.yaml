@@ -5,7 +5,7 @@ services:
     env: python
     runtime: python3.11
     buildCommand: "cd backend && chmod +x build.sh && ./build.sh"
-    startCommand: "cd backend && .venv/bin/gunicorn core.wsgi:application --timeout 120 --workers 1"
+    startCommand: "cd backend && ../.venv/bin/gunicorn core.wsgi:application --timeout 120 --workers 1"
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.0"
