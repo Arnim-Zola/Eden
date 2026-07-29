@@ -30,10 +30,13 @@ class DummyTask:
         raise exc
 
 def get_task_func(task):
+    if hasattr(task, '__wrapped__'):
+        wrapped = task.__wrapped__
+        if hasattr(wrapped, '__func__'):
+            return wrapped.__func__
+        return wrapped
     if hasattr(task, 'undecorated'):
         return task.undecorated
-    if hasattr(task, '__wrapped__'):
-        return task.__wrapped__
     return task
 
 def run_pipeline_async(job_id: int, analysis_mode: str):
