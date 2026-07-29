@@ -9,7 +9,6 @@ import { useOperationHistory } from './hooks/useOperationHistory';
 import CommandPalette from './components/CommandPalette';
 import TubesBackground from './components/TubesBackground';
 import SysMonitorHUD from './components/SysMonitorHUD';
-import HoloStatusGauges from './components/HoloStatusGauges';
 import './index.css';
 
 // ── Home page: command bar + live pipeline status ─────────────────────────────
@@ -142,7 +141,7 @@ function HomePage({ addOperation }) {
 // ── Operation page: report bento dashboard ────────────────────────────────────
 function OperationPage() {
   const navigate = useNavigate();
-  const handleReset = useCallback(() => navigate('/'), [navigate]);
+  const handleReset = useCallback(() => navigate('/app'), [navigate]);
   return <ReportDashboard onReset={handleReset} />;
 }
 
@@ -176,6 +175,7 @@ function App() {
     >
       <Routes>
         <Route path="/" element={<HomePage addOperation={addOperation} />} />
+        <Route path="/app" element={<HomePage addOperation={addOperation} />} />
         <Route path="/operation/:id" element={<OperationPage />} />
       </Routes>
       <CommandPalette
@@ -185,7 +185,6 @@ function App() {
         onClearHistory={clearHistory}
       />
       <SysMonitorHUD />
-      <HoloStatusGauges />
     </AppShell>
   );
 }

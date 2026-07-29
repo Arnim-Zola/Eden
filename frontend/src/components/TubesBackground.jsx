@@ -97,18 +97,18 @@ export function TubesBackground({
 
     return (
         <div
-            className={cn("relative w-full h-full min-h-[400px] overflow-hidden bg-background", className)}
+            className={cn("relative w-full min-h-screen bg-background", className)}
             style={style}
             onClick={handleClick}
         >
             <canvas
                 ref={canvasRef}
-                className="absolute inset-0 w-full h-full block"
-                style={{ touchAction: 'none', pointerEvents: 'none' }}
+                className="fixed inset-0 w-full h-full block"
+                style={{ touchAction: 'none', pointerEvents: 'none', zIndex: 0 }}
             />
 
             {/* Content overlay — pointer-events-none REMOVED so inputs/buttons/tabs stay interactive */}
-            <div className="relative z-10 w-full h-full">
+            <div className="relative z-10 w-full">
                 {children}
             </div>
         </div>

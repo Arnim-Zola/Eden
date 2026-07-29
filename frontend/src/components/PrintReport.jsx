@@ -322,7 +322,10 @@ export default function PrintReport({ jobData, claims, transcript, ocrData, scor
         if (url.startsWith('http')) return url;
         const cleanPath = url.startsWith('/') ? url : `/${url}`;
         const mediaPath = cleanPath.startsWith('/media/') ? cleanPath : `/media${cleanPath}`;
-        return `http://localhost:8000${mediaPath}`;
+        const apiHost = import.meta.env.VITE_API_BASE_URL 
+            ? import.meta.env.VITE_API_BASE_URL.replace('/api', '') 
+            : 'http://localhost:8000';
+        return `${apiHost}${mediaPath}`;
     };
 
     const mediaUrl = getFullUrl(

@@ -20,17 +20,23 @@ docker compose up -d
 
 ### 🧠 Terminal 2: Django REST API Service
 ```powershell
-cd backend; venv\Scripts\activate; python manage.py migrate; python manage.py runserver
+cd backend;
+venv\Scripts\activate;
+python manage.py migrate;
+python manage.py runserver
 ```
 
 ### ⚙ Terminal 3: Celery Task Worker (Windows Solo Pool)
 ```powershell
-cd backend; venv\Scripts\activate; python -m celery -A core worker --loglevel=info --pool=solo
+cd backend; 
+venv\Scripts\activate; 
+python -m celery -A core worker --loglevel=info --pool=solo
 ```
 
 ### 🖥 Terminal 4: React UI Web Client
 ```powershell
-cd frontend; npm run dev
+cd frontend; 
+npm run dev
 ```
 
 ---
