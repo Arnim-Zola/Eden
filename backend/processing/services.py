@@ -99,8 +99,6 @@ class FrameExtractionService:
             "extracted_count": extracted_count
         }
 
-import easyocr
-
 class OcrExtractionException(Exception):
     pass
 
@@ -126,6 +124,7 @@ class OcrExtractionService:
         enhanced = clahe.apply(gray)
             
         if self.reader is None:
+            import easyocr
             self.reader = easyocr.Reader(['en'], gpu=False)
             
         results = self.reader.readtext(enhanced)
@@ -184,7 +183,6 @@ class OcrExtractionService:
         }
 
 import subprocess
-import whisper
 
 class AudioExtractionException(Exception):
     pass
@@ -257,6 +255,7 @@ class AudioExtractionService:
         """
         try:
             if self.model is None:
+                import whisper
                 # Default to "tiny" in production to avoid Out of Memory (OOM) on 512MB RAM free tier.
                 model_name = os.environ.get("WHISPER_MODEL_NAME", "tiny")
                 logger.info(f"Loading Whisper model '{model_name}' on-demand...")
