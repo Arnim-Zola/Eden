@@ -243,9 +243,9 @@ class InstagramIngestionService:
     def _download_text_mode(self, base_args: list, output_template: str, url: str) -> str:
         """
         TEXT mode: try yt-dlp (best) first for video/reel.
-        If yt-dlp fails (either because it is an image post or due to scrape blocks),
-        fall back to instaloader.
-        If instaloader also fails, fall back to Playwright.
+        If yt-dlp fails with "no video formats", it's likely an image post.
+        Run yt-dlp with --skip-download and --write-all-thumbnails to download the carousel photos.
+        If both fail, fall back to instaloader and then Playwright.
         """
         import subprocess
 
@@ -254,14 +254,14 @@ class InstagramIngestionService:
             '-o', output_template,
             '--no-playlist', '--no-warnings', url,
         ]
-        print(f"!!! TEXT DOWNLOAD (attempt 1 — no format restriction) !!!")
+        print(f"!!! TEXT DOWNLOAD (attempt 1 — normal download) !!!")
         try:
             subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)
             return self._find_downloaded_file()
         except subprocess.CalledProcessError as e:
             error_msg = e.stderr.strip() if e.stderr else str(e)
             error_lower = error_msg.lower()
-            print(f"!!! yt-dlp download failed: {error_msg} !!!")
+            print(f"!!! yt-dlp normal download failed: {error_msg} !!!")
 
             # Check if this is a known fatal error where we shouldn't even try fallback (e.g., private content, deleted)
             if 'private' in error_lower:
@@ -269,7 +269,38 @@ class InstagramIngestionService:
             if 'deleted' in error_lower or 'not found' in error_lower or 'not available' in error_lower:
                 self._raise_from_ytdlp_error(error_lower, error_msg)
 
-            print("!!! yt-dlp failed or image post detected — trying instaloader fallback !!!")
+            # Check if it failed specifically because it is an image/carousel post
+            if 'no video formats found' in error_lower or 'there is no video' in error_lower:
+                # Attempt 1b: yt-dlp thumbnail download (carousel/photo slides)
+                print("!!! Image/Carousel post detected — trying yt-dlp thumbnail download !!!")
+                thumbnail_cmd = base_args + [
+                    '--skip-download', '--write-all-thumbnails',
+                    '-o', output_template,
+                    '--no-playlist', '--no-warnings', url,
+                ]
+                try:
+                    subprocess.run(thumbnail_cmd, check=True, capture_output=True, text=True, timeout=120)
+                    # Find any downloaded thumbnail file
+                    image_extensions = {'.jpg', '.jpeg', '.png', '.webp'}
+                    all_files = os.listdir(self.download_dir)
+                    images = [
+                        f for f in all_files 
+                        if Path(f).suffix.lower() in image_extensions
+                    ]
+                    if images:
+                        # Find the first slide or largest file
+                        images.sort(key=lambda f: os.path.getsize(os.path.join(self.download_dir, f)), reverse=True)
+                        best_img = images[0]
+                        ext = Path(best_img).suffix.lower()
+                        dest = os.path.join(self.download_dir, f'source_media{ext}')
+                        import shutil
+                        shutil.move(os.path.join(self.download_dir, best_img), dest)
+                        print(f"!!! yt-dlp thumbnail download successful: saved as {dest} !!!")
+                        return dest
+                except Exception as te:
+                    print(f"!!! yt-dlp thumbnail download failed: {te} !!!")
+
+            print("!!! yt-dlp failed — trying instaloader fallback !!!")
 
         # Attempt 2: instaloader — purpose-built Instagram downloader
         try:
