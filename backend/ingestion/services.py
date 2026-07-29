@@ -275,6 +275,7 @@ class InstagramIngestionService:
                 print("!!! Image/Carousel post detected — trying yt-dlp thumbnail download !!!")
                 thumbnail_cmd = base_args + [
                     '--skip-download', '--write-all-thumbnails',
+                    '--ignore-no-formats-error',
                     '-o', output_template,
                     '--no-playlist', '--no-warnings', url,
                 ]
