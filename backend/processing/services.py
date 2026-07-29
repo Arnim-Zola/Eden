@@ -106,42 +106,78 @@ class OcrExtractionException(Exception):
 class OcrExtractionService:
     def __init__(self, job_id: int):
         self.job_id = job_id
-        self.reader = None
-        
+
     def extract_from_image(self, image_path: str) -> list:
         """
-        Extracts text blocks from a single image using CV2 preprocessing.
+        Extracts text blocks from a single image using Gemini Vision API.
+        This replaces EasyOCR to avoid OOM crashes on the 512MB free tier.
+        Gemini Vision is a lightweight API call with no local model loading.
         """
         if not os.path.exists(image_path):
             raise OcrExtractionException(f"Image not found: {image_path}")
-            
-        import cv2
-        img = cv2.imread(image_path)
-        if img is None:
-            raise OcrExtractionException(f"Failed to read image with cv2: {image_path}")
-            
-        # Preprocessing: Grayscale + Contrast Enhancement
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-        enhanced = clahe.apply(gray)
-            
-        if self.reader is None:
-            import easyocr
-            self.reader = easyocr.Reader(['en'], gpu=False)
-            
-        results = self.reader.readtext(enhanced)
-        blocks = []
-        for (bbox, text, prob) in results:
-            if prob > 0.45: # Higher confidence threshold
-                # Garbage filtering: require decent alphanumeric ratio
-                alnum_count = sum(c.isalnum() for c in text)
-                if len(text) > 0 and (alnum_count / len(text)) > 0.4:
+
+        try:
+            import base64
+            from google import genai
+            from google.genai import types
+
+            api_key = os.environ.get("GEMINI_API_KEY")
+            if not api_key:
+                raise OcrExtractionException("GEMINI_API_KEY not set — cannot run OCR")
+
+            client = genai.Client(api_key=api_key)
+
+            with open(image_path, "rb") as f:
+                image_bytes = f.read()
+
+            # Detect mime type
+            image_lower = image_path.lower()
+            if image_lower.endswith(".png"):
+                mime_type = "image/png"
+            elif image_lower.endswith(".webp"):
+                mime_type = "image/webp"
+            else:
+                mime_type = "image/jpeg"
+
+            prompt = (
+                "Extract ALL visible text from this image exactly as it appears. "
+                "Return each distinct text block on a new line. "
+                "Include headlines, captions, labels, overlays, watermarks, and subtitles. "
+                "Do NOT describe the image. Only output the raw text you see. "
+                "If there is no visible text, reply with exactly: NO_TEXT_FOUND"
+            )
+
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[
+                    types.Content(parts=[
+                        types.Part(text=prompt),
+                        types.Part(inline_data=types.Blob(mime_type=mime_type, data=image_bytes)),
+                    ])
+                ],
+            )
+
+            raw_text = response.text.strip() if response.text else ""
+
+            if not raw_text or raw_text == "NO_TEXT_FOUND":
+                return []
+
+            # Convert each non-empty line into a block
+            blocks = []
+            for line in raw_text.splitlines():
+                line = line.strip()
+                if len(line) > 2:
                     blocks.append({
-                        "text": text,
-                        "confidence": float(prob),
-                        "bbox": [[int(coord) for coord in point] for point in bbox]
+                        "text": line,
+                        "confidence": 0.95,
+                        "bbox": []
                     })
-        return blocks
+            return blocks
+
+        except OcrExtractionException:
+            raise
+        except Exception as e:
+            raise OcrExtractionException(f"Gemini Vision OCR failed: {str(e)}")
         
     def extract_from_manifest(self, manifest_data: dict) -> dict:
         """
