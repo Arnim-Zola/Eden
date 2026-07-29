@@ -1471,6 +1471,15 @@ export default function CommandBar({
   const rootRef = useRef(null);
   const isLocked = isProcessing || isSubmitting;
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const m = window.matchMedia("(max-width: 639px)");
+    setIsMobile(m.matches);
+    const handler = (e) => setIsMobile(e.matches);
+    m.addEventListener("change", handler);
+    return () => m.removeEventListener("change", handler);
+  }, []);
+
   useEffect(() => {
     const id = "eden-cmd-styles";
     if (document.getElementById(id)) return;
@@ -1650,7 +1659,7 @@ export default function CommandBar({
                     <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, letterSpacing: "0.18em", color: "#2a3a48", marginBottom: 8, textTransform: "uppercase" }}>
                       ANALYSIS MODE
                     </div>
-                    <div style={{ display: "flex", gap: 10 }}>
+                    <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
                       <ModeCard
                         mode="text"
                         label="Text Focus"
@@ -1678,25 +1687,25 @@ export default function CommandBar({
             </ApertureSwitch>
           </div>
         </motion.div>
-
+ 
         {/* ── Feature Cards ── */}
         <motion.div animate={{ opacity: isLocked ? 0.35 : 1 }} transition={{ duration: 0.4 }} style={{ pointerEvents: isLocked ? "none" : "auto" }}>
           <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, letterSpacing: "0.2em", color: "#2a3a48", textAlign: "center", marginBottom: 12, textTransform: "uppercase" }}>
             INTELLIGENCE CAPABILITIES
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
             {FEATURE_CARDS.map((card, i) => (
               <FeatureCard key={card.id} {...card} index={i} />
             ))}
           </div>
         </motion.div>
-
+ 
         {/* ── Footer ── */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5, duration: 0.5 }}
-          style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 20, fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, letterSpacing: "0.12em", color: "#1e2a38" }}
+          style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", alignItems: "center", gap: isMobile ? "8px 12px" : "20px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, letterSpacing: "0.12em", color: "#1e2a38" }}
         >
           {["REAL-TIME ANALYSIS", "·", "E2E ENCRYPTED", "·", "ZERO RETENTION", "·", "GDPR COMPLIANT"].map((item, i) => (
             <span key={i} style={{ color: item === "·" ? "#1a2530" : "#1e2a38" }}>

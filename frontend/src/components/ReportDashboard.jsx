@@ -214,7 +214,7 @@ function ClassificationBreakdown({ claims }) {
   );
 }
 
-function LeftSpine({ report, score, threat, selectedId, onSelectId, claims }) {
+function LeftSpine({ report, score, threat, selectedId, onSelectId, claims, isTablet }) {
   const [, setTick] = useState(0);
   useEffect(() => { const i = setInterval(() => setTick((t) => t + 1), 1000); return () => clearInterval(i); }, []);
 
@@ -222,8 +222,8 @@ function LeftSpine({ report, score, threat, selectedId, onSelectId, claims }) {
 
   return (
     <div style={{
-      width: "300px", minWidth: "300px", height: "100vh", overflowY: "auto",
-      background: "var(--bg2)", borderRight: "1px solid var(--border)",
+      width: isTablet ? "100%" : "300px", minWidth: isTablet ? "100%" : "300px", height: isTablet ? "auto" : "100vh", overflowY: isTablet ? "visible" : "auto",
+      background: "var(--bg2)", borderRight: isTablet ? "none" : "1px solid var(--border)", borderBottom: isTablet ? "1px solid var(--border)" : "none",
       display: "flex", flexDirection: "column", fontFamily: "var(--font-mono)"
     }}>
 
@@ -969,7 +969,7 @@ export default function ReportDashboard({ onReset }) {
                 @keyframes slideIn { from{transform:translateX(40px);opacity:0} to{transform:translateX(0);opacity:1} }
             `}</style>
 
-      <div className="no-print" style={{ display: "flex", height: "100vh", background: "var(--bg)", overflow: "hidden" }}>
+      <div className="no-print" style={{ display: "flex", flexDirection: isTablet ? "column" : "row", height: isTablet ? "auto" : "100vh", background: "var(--bg)", overflow: isTablet ? "visible" : "hidden" }}>
         {/* Left Spine */}
         <LeftSpine
           report={mergedData}
@@ -978,13 +978,23 @@ export default function ReportDashboard({ onReset }) {
           claims={claims}
           selectedId={selectedId}
           onSelectId={setSelectedId}
+          isTablet={isTablet}
         />
 
         {/* Right scrollable analysis container */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "32px 32px 64px" }}>
+        <div style={{ flex: 1, overflowY: isTablet ? "visible" : "auto", padding: isMobile ? "24px 16px 48px" : "32px 32px 64px" }}>
 
           {/* Header */}
-          <div style={{ marginBottom: "28px", paddingBottom: "20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div style={{ 
+            marginBottom: "28px", 
+            paddingBottom: "20px", 
+            borderBottom: "1px solid var(--border)", 
+            display: "flex", 
+            flexDirection: isMobile ? "column" : "row",
+            justifyContent: "space-between", 
+            alignItems: isMobile ? "flex-start" : "flex-end",
+            gap: isMobile ? "16px" : "0px"
+          }}>
             <div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "4px", color: "var(--text-dim)", marginBottom: "8px" }}>
                 MEDIA ANALYSIS REPORT · {mergedData.analysis_type}
