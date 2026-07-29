@@ -14,23 +14,72 @@ from processing.tasks import extract_ocr_text, extract_audio_transcription
 from analysis.tasks import analyze_job_content
 
 
-def _build_pipeline(job_id: int, analysis_mode: str) -> list:
-    """
-    Return the ordered list of Celery task signatures for the given mode.
+import threading
+import time
+from django.db import close_old_connections
+from core_app.models import AnalysisJobStatus
 
-    TEXT  → ingest → extract_ocr_text (absorbs frame extraction) → analyze
-    AUDIO → ingest → extract_audio_transcription                  → analyze
-    """
-    base = [ingest_instagram_media.si(job_id)]
+class DummyTask:
+    def __init__(self):
+        class Request:
+            retries = 0
+        self.request = Request()
+        self.max_retries = 3
+    def retry(self, exc=None, countdown=0):
+        time.sleep(countdown)
+        raise exc
 
-    if analysis_mode == 'audio':
-        base.append(extract_audio_transcription.si(job_id))
-    else:
-        # TEXT mode (default)
-        base.append(extract_ocr_text.si(job_id))
+def run_pipeline_async(job_id: int, analysis_mode: str):
+    def run():
+        # Short delay to ensure the request returns 201 Created to the client first
+        time.sleep(0.5)
+        from ingestion.tasks import ingest_instagram_media
+        from processing.tasks import extract_ocr_text, extract_audio_transcription
+        from analysis.tasks import analyze_job_content
+        from core_app.models import AnalysisJob, AnalysisJobStatus
+        
+        dummy_task = DummyTask()
+        try:
+            close_old_connections()
+            print(f"!!! Async Thread: Ingesting job {job_id}...")
+            ingest_instagram_media(dummy_task, job_id)
+            
+            job = AnalysisJob.objects.get(id=job_id)
+            if job.status == AnalysisJobStatus.FAILED:
+                print(f"!!! Async Thread: Ingestion failed for job {job_id}. Aborting pipeline. !!!")
+                return
+                
+            if analysis_mode == 'audio':
+                print(f"!!! Async Thread: Transcribing audio for job {job_id}...")
+                extract_audio_transcription(dummy_task, job_id)
+            else:
+                print(f"!!! Async Thread: Running OCR for job {job_id}...")
+                extract_ocr_text(dummy_task, job_id)
+                
+            job = AnalysisJob.objects.get(id=job_id)
+            if job.status == AnalysisJobStatus.FAILED:
+                print(f"!!! Async Thread: Extraction failed for job {job_id}. Aborting pipeline. !!!")
+                return
+                
+            print(f"!!! Async Thread: Analyzing content for job {job_id}...")
+            analyze_job_content(job_id)
+            print(f"!!! Async Thread: Pipeline success for job {job_id}!")
+        except Exception as e:
+            print(f"!!! Async Thread exception for job {job_id}: {e} !!!")
+            try:
+                job = AnalysisJob.objects.get(id=job_id)
+                if job.status != AnalysisJobStatus.FAILED:
+                    job.status = AnalysisJobStatus.FAILED
+                    job.error_message = f"Async pipeline error: {str(e)}"
+                    job.save()
+            except Exception:
+                pass
+        finally:
+            close_old_connections()
 
-    base.append(analyze_job_content.si(job_id))
-    return base
+    thread = threading.Thread(target=run)
+    thread.daemon = True
+    thread.start()
 
 
 class AnalysisJobViewSet(viewsets.ModelViewSet):
@@ -53,7 +102,7 @@ class AnalysisJobViewSet(viewsets.ModelViewSet):
                 instagram_url=instagram_url,
                 analysis_type=analysis_type,
             )
-            chain(*_build_pipeline(job.id, analysis_mode)).apply_async()
+            run_pipeline_async(job.id, analysis_mode)
             return Response(AnalysisJobSerializer(job).data, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -135,8 +184,8 @@ class UploadView(APIView):
                 processing_status='UPLOADED',
             )
 
-            # ingest task is a passthrough for UPLOAD jobs; pipeline is still mode-selective
-            chain(*_build_pipeline(job.id, analysis_mode)).apply_async()
+            # launch the thread asynchronously
+            run_pipeline_async(job.id, analysis_mode)
 
             return Response(AnalysisJobSerializer(job).data, status=status.HTTP_201_CREATED)
 
