@@ -88,3 +88,4 @@ psycopg2-binary
 whitenoise
 gunicorn
 yt-dlp
+beautifulsoup4
