@@ -29,6 +29,13 @@ class DummyTask:
         time.sleep(countdown)
         raise exc
 
+def get_task_func(task):
+    if hasattr(task, '__wrapped__'):
+        return task.__wrapped__
+    if hasattr(task, 'undecorated'):
+        return task.undecorated
+    return task
+
 def run_pipeline_async(job_id: int, analysis_mode: str):
     def run():
         # Short delay to ensure the request returns 201 Created to the client first
@@ -42,7 +49,7 @@ def run_pipeline_async(job_id: int, analysis_mode: str):
         try:
             close_old_connections()
             print(f"!!! Async Thread: Ingesting job {job_id}...")
-            ingest_instagram_media.run(dummy_task, job_id)
+            get_task_func(ingest_instagram_media)(dummy_task, job_id)
             
             job = AnalysisJob.objects.get(id=job_id)
             if job.status == AnalysisJobStatus.FAILED:
@@ -51,10 +58,10 @@ def run_pipeline_async(job_id: int, analysis_mode: str):
                 
             if analysis_mode == 'audio':
                 print(f"!!! Async Thread: Transcribing audio for job {job_id}...")
-                extract_audio_transcription.run(dummy_task, job_id)
+                get_task_func(extract_audio_transcription)(dummy_task, job_id)
             else:
                 print(f"!!! Async Thread: Running OCR for job {job_id}...")
-                extract_ocr_text.run(dummy_task, job_id)
+                get_task_func(extract_ocr_text)(dummy_task, job_id)
                 
             job = AnalysisJob.objects.get(id=job_id)
             if job.status == AnalysisJobStatus.FAILED:
@@ -62,7 +69,7 @@ def run_pipeline_async(job_id: int, analysis_mode: str):
                 return
                 
             print(f"!!! Async Thread: Analyzing content for job {job_id}...")
-            analyze_job_content.run(job_id)
+            get_task_func(analyze_job_content)(job_id)
             print(f"!!! Async Thread: Pipeline success for job {job_id}!")
         except Exception as e:
             print(f"!!! Async Thread exception for job {job_id}: {e} !!!")
