@@ -370,14 +370,23 @@ class InstagramIngestionService:
 
     def _download_via_playwright(self, url: str) -> str:
         """
-        Playwright-based fallback scraper.
-        Extracts the image or video URL from the page and downloads it.
+        Scrapes Instagram post using Playwright to extract direct media link.
         """
-        from playwright.sync_api import sync_playwright
-        import requests
+        import os
+        if os.environ.get("RENDER"):
+            print("!!! PLAYWRIGHT FALLBACK SKIPPED: Playwright is disabled on Render to prevent Gunicorn worker timeout crash !!!")
+            raise InstagramIngestionException(
+                "INSTAGRAM_RATE_LIMITED: Instagram is blocking anonymous connections. "
+                "Please download the image/video and upload it directly using the file uploader."
+            )
 
-        print(f"!!! PLAYWRIGHT FALLBACK: url={url} !!!")
-        
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            raise InstagramIngestionException(
+                "PLAYWRIGHT_NOT_INSTALLED: Playwright dependency is missing."
+            )
+
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
