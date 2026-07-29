@@ -297,8 +297,10 @@ class InstagramIngestionService:
                         shutil.move(os.path.join(self.download_dir, best_img), dest)
                         print(f"!!! yt-dlp thumbnail download successful: saved as {dest} !!!")
                         return dest
+                except subprocess.CalledProcessError as te:
+                    print(f"!!! yt-dlp thumbnail download failed (stderr): {te.stderr.strip() if te.stderr else str(te)} !!!")
                 except Exception as te:
-                    print(f"!!! yt-dlp thumbnail download failed: {te} !!!")
+                    print(f"!!! yt-dlp thumbnail download failed (other): {te} !!!")
 
             print("!!! yt-dlp failed — trying instaloader fallback !!!")
 
