@@ -117,6 +117,10 @@ def analyze_job_content(job_id: int):
 
     try:
         job = AnalysisJob.objects.get(id=job_id)
+        # ── Pipeline failure guard ────────────────────────────────────────────
+        if job.status == AnalysisJobStatus.FAILED:
+            return {"status": "skipped", "reason": "upstream_task_failed"}
+        # ─────────────────────────────────────────────────────────────────────
         job.status = AnalysisJobStatus.ANALYZING
         job.processing_phase = 'Analyzing extracted content (Multi-Provider)'
         job.save()

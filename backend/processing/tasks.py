@@ -48,6 +48,10 @@ def extract_ocr_text(self, job_id: int):
         job.processing_phase = "OCR skipped — not required in AUDIO mode."
         job.save(update_fields=['processing_phase'])
         return {"status": "skipped", "reason": "audio_mode"}
+
+    # ── Pipeline failure guard (ALWAYS_EAGER chain termination workaround) ────
+    if job.status == AnalysisJobStatus.FAILED:
+        return {"status": "skipped", "reason": "upstream_task_failed"}
     # ─────────────────────────────────────────────────────────────────────────
 
     try:
@@ -201,6 +205,10 @@ def extract_audio_transcription(self, job_id: int):
         job.processing_phase = "Audio transcription skipped — not required in TEXT mode."
         job.save(update_fields=['processing_phase'])
         return {"status": "skipped", "reason": "text_mode"}
+
+    # ── Pipeline failure guard (ALWAYS_EAGER chain termination workaround) ────
+    if job.status == AnalysisJobStatus.FAILED:
+        return {"status": "skipped", "reason": "upstream_task_failed"}
     # ─────────────────────────────────────────────────────────────────────────
 
     try:
